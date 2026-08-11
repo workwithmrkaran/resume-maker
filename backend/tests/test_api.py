@@ -185,3 +185,13 @@ def test_posix_path_still_applies_limits(monkeypatch, tmp_path):
     monkeypatch.setattr(compiler.subprocess, "run", fake_run)
     compiler._run_subprocess(tmp_path)
     assert captured["preexec_fn"] is compiler._limits
+
+
+def test_api_root_signposts_instead_of_404(client):
+    body = client.get("/").json()
+    assert body["health"] == "/api/health"
+    assert "5173" in body["web_ui"]
+
+
+def test_favicon_is_quietly_empty(client):
+    assert client.get("/favicon.ico").status_code == 204

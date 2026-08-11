@@ -89,6 +89,26 @@ def rate_limit(limit):
     return dependency
 
 
+@app.get("/", include_in_schema=False)
+async def root() -> dict:
+    """Signpost, so hitting the API root isn't a bare 404.
+
+    People land here expecting the app; the web UI is a separate service.
+    """
+    return {
+        "service": "Resume Maker API",
+        "web_ui": "the frontend runs separately — http://localhost:5173 in dev",
+        "health": "/api/health",
+        "docs": "/docs",
+    }
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon() -> Response:
+    """Browsers ask for this on every visit; 204 keeps the logs readable."""
+    return Response(status_code=204)
+
+
 @app.get("/api/health")
 async def health() -> dict:
     llm = get_client()
