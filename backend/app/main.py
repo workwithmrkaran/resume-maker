@@ -19,6 +19,7 @@ from typing import Optional
 
 from fastapi import (Depends, FastAPI, File, HTTPException, Request,
                      Response, UploadFile)
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -267,6 +268,30 @@ def _job_status(job) -> JobStatus:
         status.confidence = job.result["confidence"]
         status.low_confidence = job.result["low_confidence"]
     return status
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request,
+                                       exc: RequestValidationError):
+    """Make a 422 diagnosable without echoing resume content back.
+
+    FastAPI's default body quotes the offending values, which here means
+    somebody's phone number in a log or an error panel. Field paths go to the
+    server log; the client gets plain language and the list of fields.
+    """
+    fields = [".".join(str(p) for p in error["loc"][1:]) or "(body)"
+              for error in exc.errors()]
+    log.warning("rejected %s: invalid fields: %s", request.url.path,
+                ", ".join(f"{f} ({e['type']})"
+                          for f, e in zip(fields, exc.errors())))
+    return JSONResponse(
+        status_code=422,
+        content={
+            "error": "Some of these details couldn't be accepted — please "
+                     "check the highlighted fields.",
+            "fields": fields,
+        },
+    )
 
 
 @app.exception_handler(HTTPException)

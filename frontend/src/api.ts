@@ -22,11 +22,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new ApiError("We couldn't reach the server. Check your connection and try again.", 0);
   }
   if (!response.ok) {
-    // The API returns { error }; anything else means an unexpected failure,
-    // and either way the user gets plain language rather than internals.
+    // The API returns { error }, plus { fields } on a validation failure —
+    // naming them beats a generic "something went wrong" when the form and
+    // the schema disagree.
     const body = await response.json().catch(() => null);
+    const fields: string[] | undefined = body?.fields;
+    const detail = fields?.length ? ` (${fields.join(', ')})` : '';
     throw new ApiError(
-      body?.error ?? 'Something went wrong. Please try again.',
+      (body?.error ?? 'Something went wrong. Please try again.') + detail,
       response.status,
     );
   }

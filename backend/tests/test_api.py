@@ -195,3 +195,16 @@ def test_api_root_signposts_instead_of_404(client):
 
 def test_favicon_is_quietly_empty(client):
     assert client.get("/favicon.ico").status_code == 204
+
+
+def test_validation_errors_name_fields_without_quoting_values(client):
+    payload = {
+        "template_id": "classic",
+        "resume": {"contact": {"full_name": "Sam", "email": "definitely-not-email"}},
+    }
+    response = client.post("/api/compile", json=payload)
+    assert response.status_code == 422
+    body = response.json()
+    assert "resume.contact.email" in body["fields"]
+    # The bad value itself must not come back to the client.
+    assert "definitely-not-email" not in response.text
