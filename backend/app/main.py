@@ -312,26 +312,53 @@ def _job_status(job) -> JobStatus:
     return status
 
 
+# Schema paths are for the log; users get the words that appear on the form.
+_SECTION_NAMES = {
+    "contact": "Contact", "summary": "Summary", "experience": "Work experience",
+    "education": "Education", "skills": "Skills", "projects": "Projects",
+    "publications": "Publications", "links": "Links",
+}
+_FIELD_NAMES = {
+    "url": "link", "full_name": "full name", "start_date": "start date",
+    "end_date": "end date", "bullets": "bullet points", "institution":
+    "institution", "company": "company", "title": "title", "degree": "degree",
+}
+
+
+def _human_field(loc: tuple) -> str:
+    """Turn ('body','resume','projects',0,'url') into 'Projects, entry 1: link'."""
+    parts = [p for p in loc if p not in ("body", "resume")]
+    if not parts:
+        return "the form"
+    words = []
+    for part in parts:
+        if isinstance(part, int):
+            words.append(f"entry {part + 1}")
+        elif part in _SECTION_NAMES and not words:
+            words.append(_SECTION_NAMES[part])
+        else:
+            words.append(_FIELD_NAMES.get(part, str(part).replace("_", " ")))
+    return f"{words[0]}, {', '.join(words[1:])}" if len(words) > 1 else words[0]
+
+
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request,
                                        exc: RequestValidationError):
     """Make a 422 diagnosable without echoing resume content back.
 
     FastAPI's default body quotes the offending values, which here means
-    somebody's phone number in a log or an error panel. Field paths go to the
-    server log; the client gets plain language and the list of fields.
+    somebody's phone number in a log or an error panel. Schema paths go to the
+    server log; the client gets the field named the way the form names it.
     """
-    fields = [".".join(str(p) for p in error["loc"][1:]) or "(body)"
-              for error in exc.errors()]
     log.warning("rejected %s: invalid fields: %s", request.url.path,
-                ", ".join(f"{f} ({e['type']})"
-                          for f, e in zip(fields, exc.errors())))
+                ", ".join(f"{'.'.join(str(p) for p in e['loc'][1:])} ({e['type']})"
+                          for e in exc.errors()))
     return JSONResponse(
         status_code=422,
         content={
             "error": "Some of these details couldn't be accepted — please "
                      "check the highlighted fields.",
-            "fields": fields,
+            "fields": [_human_field(tuple(e["loc"])) for e in exc.errors()],
         },
     )
 

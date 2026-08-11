@@ -73,3 +73,35 @@ describe('validation', () => {
     expect(validateAll(withName())).toEqual({});
   });
 });
+
+describe('link validation', () => {
+  const withProjectUrl = (url: string): Resume => {
+    const resume = withName();
+    resume.projects = [
+      { name: 'Thing', role: '', url, start_date: '', end_date: '', description: '', bullets: [] },
+    ];
+    return resume;
+  };
+
+  it.each(['github.com/sam', 'https://example.com/a?b=1&c=2', 'mailto:sam@example.com'])(
+    'accepts %s',
+    (url) => {
+      expect(validateStep('projects', withProjectUrl(url))['projects.0.url']).toBeUndefined();
+    },
+  );
+
+  it.each(['not a url', 'my project page', 'C:\\Users\\sam\\project'])(
+    'rejects %s in the form rather than letting the API 422',
+    (url) => {
+      expect(validateStep('projects', withProjectUrl(url))['projects.0.url']).toBeDefined();
+    },
+  );
+
+  it('treats an empty link as fine — the field is optional', () => {
+    expect(validateStep('projects', withProjectUrl(''))['projects.0.url']).toBeUndefined();
+  });
+
+  it('blocks the whole form so Generate is disabled before the request', () => {
+    expect(validateAll(withProjectUrl('not a url'))['projects.0.url']).toBeDefined();
+  });
+});

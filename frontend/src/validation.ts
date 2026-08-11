@@ -9,6 +9,16 @@ export type Errors = Record<string, string>;
 
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
+/**
+ * Mirrors the URL rule in backend/app/schema.py: an http(s) address, a
+ * mailto:, or a bare domain we can prefix with https://. Anything else would
+ * be embedded in the PDF as a clickable link, so the server rejects it — this
+ * catches it in the form instead of as a 422 after the user hits Generate.
+ */
+const URL_LIKE = /^(https?:\/\/|mailto:|[\w.-]+\.[a-z]{2,}(\/|$))/i;
+
+const linkError = 'Enter a web address, e.g. github.com/you — or leave it empty.';
+
 export function validateStep(step: StepId, resume: Resume): Errors {
   const errors: Errors = {};
 
@@ -23,8 +33,8 @@ export function validateStep(step: StepId, resume: Resume): Errors {
       errors['contact.email'] = "That doesn't look like an email address.";
     }
     contact.links.forEach((link, i) => {
-      if (link.url.trim() && !/^(https?:\/\/|mailto:|[\w.-]+\.[a-z]{2,})/i.test(link.url.trim())) {
-        errors[`contact.links.${i}.url`] = 'Enter a web address, e.g. github.com/you';
+      if (link.url.trim() && !URL_LIKE.test(link.url.trim())) {
+        errors[`contact.links.${i}.url`] = linkError;
       }
     });
   }
@@ -60,6 +70,9 @@ export function validateStep(step: StepId, resume: Resume): Errors {
       if (started && !project.name.trim()) {
         errors[`projects.${i}.name`] = 'Project name is required.';
       }
+      if (project.url.trim() && !URL_LIKE.test(project.url.trim())) {
+        errors[`projects.${i}.url`] = linkError;
+      }
     });
   }
 
@@ -68,6 +81,9 @@ export function validateStep(step: StepId, resume: Resume): Errors {
       const started = pub.title.trim() || pub.authors.trim() || pub.venue.trim();
       if (started && !pub.title.trim()) {
         errors[`publications.${i}.title`] = 'Publication title is required.';
+      }
+      if (pub.url.trim() && !URL_LIKE.test(pub.url.trim())) {
+        errors[`publications.${i}.url`] = linkError;
       }
     });
   }

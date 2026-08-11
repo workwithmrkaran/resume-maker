@@ -310,6 +310,8 @@ export function ProjectsStep({ resume, errors, patch }: StepProps) {
             type="url"
             optional
             value={project.url}
+            path={`projects.${index}.url`}
+            error={errors[`projects.${index}.url`]}
             maxLength={300}
             placeholder="github.com/you/project"
             onChange={(v) => update({ url: v })}
@@ -395,6 +397,8 @@ export function PublicationsStep({ resume, errors, patch }: StepProps) {
               type="url"
               optional
               value={pub.url}
+              path={`publications.${index}.url`}
+              error={errors[`publications.${index}.url`]}
               maxLength={300}
               onChange={(v) => update({ url: v })}
             />

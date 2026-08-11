@@ -205,7 +205,7 @@ def test_validation_errors_name_fields_without_quoting_values(client):
     response = client.post("/api/compile", json=payload)
     assert response.status_code == 422
     body = response.json()
-    assert "resume.contact.email" in body["fields"]
+    assert body["fields"] == ["Contact, email"]
     # The bad value itself must not come back to the client.
     assert "definitely-not-email" not in response.text
 
@@ -230,3 +230,15 @@ def test_gallery_preview_needs_no_latex_engine(client, monkeypatch):
 
     png = client.get("/api/templates/classic/preview.png")
     assert png.status_code == 200 and png.content.startswith(b"\x89PNG")
+
+
+def test_validation_fields_are_named_the_way_the_form_names_them():
+    """"resume.projects.0.url" means nothing to someone filling in a form."""
+    from app.main import _human_field
+
+    assert _human_field(("body", "resume", "projects", 0, "url")) == \
+        "Projects, entry 1, link"
+    assert _human_field(("body", "resume", "contact", "full_name")) == \
+        "Contact, full name"
+    assert _human_field(("body", "resume", "experience", 2, "company")) == \
+        "Work experience, entry 3, company"
