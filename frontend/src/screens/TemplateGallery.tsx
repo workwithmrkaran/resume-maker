@@ -15,6 +15,10 @@ export function TemplateGallery({
 }) {
   const [templates, setTemplates] = useState<Template[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Thumbnails need poppler on the server. Where it isn't installed (a plain
+  // Windows dev machine, say) the card falls back to a link rather than a
+  // broken image.
+  const [noThumbnail, setNoThumbnail] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     fetchTemplates()
@@ -54,7 +58,15 @@ export function TemplateGallery({
                 rel="noreferrer"
                 title={`Open the full ${template.name} sample PDF`}
               >
-                <img src={absoluteUrl(template.preview_url)} alt={`${template.name} sample resume`} />
+                {noThumbnail[template.id] ? (
+                  <span className="card__preview-fallback">Open the sample PDF →</span>
+                ) : (
+                  <img
+                    src={absoluteUrl(template.preview_url)}
+                    alt={`${template.name} sample resume`}
+                    onError={() => setNoThumbnail((s) => ({ ...s, [template.id]: true }))}
+                  />
+                )}
               </a>
               <div className="card__body">
                 <h3>{template.name}</h3>

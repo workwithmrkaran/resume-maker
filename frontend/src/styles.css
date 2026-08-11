@@ -113,6 +113,10 @@ a.btn { text-decoration: none; display: inline-block; }
   background: #eef0f4; border-bottom: 1px solid var(--line);
 }
 .card__preview img { width: 100%; display: block; }
+.card__preview-fallback {
+  display: flex; align-items: center; justify-content: center; height: 100%;
+  color: var(--accent); font-weight: 600; font-size: 0.95rem; text-decoration: none;
+}
 .card__preview:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .card__body { padding: 1rem 1.1rem 1.2rem; display: flex; flex-direction: column; gap: 0.35rem; }
 .card__body .btn { margin-top: 0.6rem; align-self: flex-start; }

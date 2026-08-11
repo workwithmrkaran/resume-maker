@@ -10,13 +10,17 @@ from __future__ import annotations
 
 import os
 import secrets
+import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
 PDF_TTL_SECONDS = int(os.getenv("PDF_TTL_SECONDS", str(60 * 60)))
-STORE_DIR = Path(os.getenv("PDF_STORE_DIR", "/tmp/resume-maker-pdfs"))
+# Default under the OS temp dir so this works on Windows too, where "/tmp"
+# would land in a surprising place like C:\tmp.
+STORE_DIR = Path(os.getenv("PDF_STORE_DIR")
+                 or Path(tempfile.gettempdir()) / "resume-maker-pdfs")
 
 
 @dataclass

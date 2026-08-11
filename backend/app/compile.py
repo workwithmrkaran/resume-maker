@@ -13,18 +13,29 @@ Two backends, chosen with ``COMPILE_BACKEND``:
 
 Either way the same hard limits apply: shell-escape off, a wall-clock timeout,
 and CPU/memory/file-size caps.
+
+Windows note: the OS has no `RLIMIT_*` equivalent, so on Windows the engine
+runs with shell-escape off and a wall-clock timeout, but WITHOUT the memory,
+CPU and file-size caps. That is fine for local development and NOT acceptable
+for a public deployment — ship the container, or set COMPILE_BACKEND=docker.
+`sandbox_status()` reports which limits are actually in force.
 """
 
 from __future__ import annotations
 
 import logging
 import os
-import resource
 import shutil
 import subprocess
+import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
+
+IS_WINDOWS = sys.platform == "win32"
+
+if not IS_WINDOWS:
+    import resource  # POSIX only; guarded so the app imports on Windows
 
 log = logging.getLogger(__name__)
 
@@ -110,12 +121,23 @@ def _engine_argv(workdir: Path) -> list[str]:
 
 
 def _limits() -> None:
-    """Applied in the child process between fork and exec."""
+    """Applied in the child process between fork and exec (POSIX only)."""
     resource.setrlimit(resource.RLIMIT_AS, (MEMORY_LIMIT_BYTES, MEMORY_LIMIT_BYTES))
     resource.setrlimit(resource.RLIMIT_CPU, (TIMEOUT_SECONDS, TIMEOUT_SECONDS))
     resource.setrlimit(resource.RLIMIT_FSIZE, (OUTPUT_LIMIT_BYTES, OUTPUT_LIMIT_BYTES))
     resource.setrlimit(resource.RLIMIT_NPROC, (64, 64))
     os.setsid()  # so a timeout kill takes any children with it
+
+
+def sandbox_status() -> dict:
+    """What protections are actually active, for /api/health and the logs."""
+    return {
+        "platform": sys.platform,
+        "shell_escape_disabled": True,
+        "timeout_seconds": TIMEOUT_SECONDS,
+        # The only difference between platforms, stated rather than implied.
+        "resource_limits": not IS_WINDOWS,
+    }
 
 
 def _run_subprocess(workdir: Path) -> tuple[int, str]:
@@ -129,6 +151,25 @@ def _run_subprocess(workdir: Path) -> tuple[int, str]:
         "openin_any": "p",
         "shell_escape": "f",
     }
+    if IS_WINDOWS:
+        # MiKTeX and TeX Live for Windows resolve their installation through
+        # these; a stripped environment leaves the engine unable to find its
+        # own files.
+        for name in ("SYSTEMROOT", "SYSTEMDRIVE", "TEMP", "TMP", "USERPROFILE",
+                     "APPDATA", "LOCALAPPDATA", "PATHEXT", "COMSPEC"):
+            value = os.getenv(name)
+            if value:
+                env[name] = value
+
+    extra: dict = {}
+    if IS_WINDOWS:
+        # No fork, so no preexec_fn. A separate process group at least lets the
+        # timeout kill signal reach the engine cleanly.
+        extra["creationflags"] = getattr(
+            subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+    else:
+        extra["preexec_fn"] = _limits
+
     try:
         proc = subprocess.run(
             _engine_argv(workdir),
@@ -136,8 +177,8 @@ def _run_subprocess(workdir: Path) -> tuple[int, str]:
             env=env,
             capture_output=True,
             timeout=TIMEOUT_SECONDS,
-            preexec_fn=_limits,
             check=False,
+            **extra,
         )
     except subprocess.TimeoutExpired:
         raise CompileError("Compilation timed out") from None
@@ -156,7 +197,12 @@ def _run_docker(workdir: Path) -> tuple[int, str]:
         "--pids-limit=64",
         "--cap-drop=ALL",
         "--security-opt=no-new-privileges",
-        "--user", f"{os.getuid()}:{os.getgid()}",
+    ]
+    if not IS_WINDOWS:
+        # Keeps the output PDF owned by the calling user. Windows has no uid,
+        # and Docker Desktop maps ownership for us anyway.
+        argv += ["--user", f"{os.getuid()}:{os.getgid()}"]
+    argv += [
         "-v", f"{workdir}:/work",
         "-w", "/work",
         DOCKER_IMAGE,

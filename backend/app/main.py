@@ -50,6 +50,18 @@ _thumbnail_cache: dict[str, bytes] = {}
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     store.sweep()
+    if not compiler.sandbox_status()["resource_limits"]:
+        # Loud on purpose: this is the one platform difference that matters,
+        # and it must not be discovered in production.
+        log.warning(
+            "Running without per-compile resource limits (%s). Fine for local "
+            "development; use the Docker image or COMPILE_BACKEND=docker for "
+            "anything reachable from the internet.",
+            compiler.sandbox_status()["platform"],
+        )
+    if not compiler.engine_available():
+        log.warning("LaTeX engine '%s' not found on PATH — compiles will fail.",
+                    compiler.LATEX_ENGINE)
     yield
     queue.shutdown()
 
@@ -85,6 +97,7 @@ async def health() -> dict:
         "engine": compiler.LATEX_ENGINE,
         "backend": compiler.COMPILE_BACKEND,
         "engine_available": compiler.engine_available(),
+        "sandbox": compiler.sandbox_status(),
         # Which providers are loaded, and in what order they will be tried.
         # Keys are redacted — this endpoint is public.
         "extraction_enabled": llm.configured,

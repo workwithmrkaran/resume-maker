@@ -4,6 +4,7 @@ The compile tests are skipped automatically when no TeX engine is installed,
 so the suite stays runnable outside the Docker image.
 """
 
+import os
 import time
 
 import pytest
@@ -131,3 +132,56 @@ def test_compile_rate_limit_enforced(client, monkeypatch):
 def test_error_response_shape(client):
     body = client.get("/api/jobs/missing").json()
     assert set(body) == {"error"}
+
+
+# --------------------------------------------------------------- portability
+
+def test_sandbox_status_reports_limits_on_this_platform():
+    status = compiler.sandbox_status()
+    assert status["shell_escape_disabled"] is True
+    assert status["timeout_seconds"] > 0
+    assert status["resource_limits"] is (compiler.sys.platform != "win32")
+
+
+def test_windows_path_skips_posix_only_options(monkeypatch, tmp_path):
+    """On Windows there is no fork, so `preexec_fn` must not be passed.
+
+    Exercised here on any platform by flipping the flag: passing preexec_fn on
+    Windows raises ValueError before the engine ever runs.
+    """
+    captured = {}
+
+    class FakeProc:
+        returncode = 0
+        stdout = b""
+
+    def fake_run(argv, **kwargs):
+        captured.update(kwargs)
+        return FakeProc()
+
+    monkeypatch.setattr(compiler, "IS_WINDOWS", True)
+    monkeypatch.setattr(compiler.subprocess, "run", fake_run)
+    compiler._run_subprocess(tmp_path)
+
+    assert "preexec_fn" not in captured
+    assert "creationflags" in captured
+    # The engine still needs to find its own installation.
+    assert "SYSTEMROOT" in captured["env"] or "SYSTEMROOT" not in os.environ
+
+
+def test_posix_path_still_applies_limits(monkeypatch, tmp_path):
+    if compiler.IS_WINDOWS:  # pragma: no cover - not the CI platform
+        pytest.skip("POSIX only")
+    captured = {}
+
+    class FakeProc:
+        returncode = 0
+        stdout = b""
+
+    def fake_run(argv, **kwargs):
+        captured.update(kwargs)
+        return FakeProc()
+
+    monkeypatch.setattr(compiler.subprocess, "run", fake_run)
+    compiler._run_subprocess(tmp_path)
+    assert captured["preexec_fn"] is compiler._limits

@@ -39,7 +39,9 @@ docker compose up --build
 
 ### Locally, for development
 
-The backend needs a TeX installation. On Debian/Ubuntu:
+The backend needs a TeX installation.
+
+**Debian/Ubuntu:**
 
 ```bash
 sudo apt-get install -y --no-install-recommends \
@@ -47,12 +49,21 @@ sudo apt-get install -y --no-install-recommends \
     texlive-fonts-recommended lmodern poppler-utils
 ```
 
+**macOS:** `brew install --cask mactex-no-gui && brew install poppler`
+
+**Windows:** install [MiKTeX](https://miktex.org/download) (tick "install
+missing packages on the fly") or TeX Live, and make sure `pdflatex --version`
+works in a new terminal. Template thumbnails additionally want
+[poppler](https://github.com/oschwartz10612/poppler-windows/releases) on
+`PATH`; without it the gallery falls back to a link to the sample PDF and
+everything else works.
+
 `lmodern` is not optional — without it pdflatex falls back to bitmap fonts,
-which look wrong and extract badly in ATS scanners. `poppler-utils` is used to
-rasterise template thumbnails.
+which look wrong and extract badly in ATS scanners. MiKTeX fetches it
+automatically on first compile.
 
 ```bash
-# API
+# API  (Windows: .venv\Scripts\activate, then uvicorn app.main:app --reload --port 8000)
 cd backend
 python -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
 .venv/bin/uvicorn app.main:app --reload --port 8000
@@ -62,6 +73,21 @@ cd frontend
 npm install
 npm run dev          # http://localhost:5173
 ```
+
+`GET /api/health` reports what the server actually found — `engine_available`
+for LaTeX, `extraction_enabled` for the model providers, and `sandbox` for
+which compile protections are in force.
+
+#### A caveat about running on Windows
+
+Windows has no `RLIMIT_*`, so on Windows the compiler runs with shell-escape
+off and a wall-clock timeout but **without** the memory, CPU and file-size
+caps described under Safety. The API logs a warning at startup and
+`/api/health` reports `sandbox.resource_limits: false`.
+
+That is fine for local development. For anything reachable from the internet,
+run the Docker image (Linux, full limits) or set `COMPILE_BACKEND=docker` so
+each compile is isolated in its own throwaway container.
 
 ## Tests
 
@@ -156,7 +182,8 @@ Every compile runs LaTeX over text an untrusted user supplied, so:
   `openin_any`/`openout_any=p` so the engine cannot read or write outside its
   working directory.
 - **Resource limits.** Wall-clock timeout, `RLIMIT_AS`/`CPU`/`FSIZE`/`NPROC`,
-  and an ephemeral working directory removed after every job.
+  and an ephemeral working directory removed after every job. The rlimits are
+  POSIX-only — see the Windows caveat above.
 - **Container hardening.** The compose service runs read-only, unprivileged,
   with all capabilities dropped and `no-new-privileges`. Set
   `COMPILE_BACKEND=docker` to isolate each compile in its own `--network=none`
