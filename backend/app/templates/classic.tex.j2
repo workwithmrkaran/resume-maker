@@ -1,0 +1,164 @@
+%# Classic — clean, single-column, ATS-friendly resume.
+%#
+%# Jinja2 delimiters are remapped (see app/latex.py):
+%#   \VAR{ ... }   expression   (auto LaTeX-escaped)
+%#   \BLOCK{ ... } statement
+%#   \#{ ... }     comment
+%#
+%# Every \VAR{} is escaped by the environment finalizer. Use the `url` filter
+%# only for values that must stay URL-functional inside \href.
+\documentclass[\VAR{ font_size }pt,a4paper]{article}
+
+%# lmodern gives Type1 (vector) fonts under T1 — without it the engine falls
+%# back to bitmap EC fonts, which look wrong on screen and in ATS text
+%# extraction, and trigger a slow metafont run on first compile.
+\usepackage{lmodern}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=\VAR{ margin }]{geometry}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{tabularx}
+
+\definecolor{accent}{HTML}{1A1A1A}
+\definecolor{rule}{HTML}{9A9A9A}
+\definecolor{link}{HTML}{1F3D7A}
+
+\hypersetup{
+  colorlinks=true,
+  urlcolor=link,
+  pdftitle={\VAR{ contact.full_name } — Resume},
+  pdfauthor={\VAR{ contact.full_name }},
+  pdfcreator={Resume Maker}
+}
+
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+\setlength{\tabcolsep}{0pt}
+
+\titleformat{\section}
+  {\normalfont\large\bfseries\color{accent}}
+  {}{0pt}{\MakeUppercase}
+  [\vspace{-0.6em}{\color{rule}\rule{\linewidth}{0.6pt}}]
+\titlespacing*{\section}{0pt}{1.1em}{0.6em}
+
+\newcommand{\entryheading}[2]{%
+  \begin{tabularx}{\linewidth}{@{}X r@{}}
+    #1 & #2 \\
+  \end{tabularx}%
+}
+
+\setlist[itemize]{leftmargin=1.1em,topsep=0.25em,itemsep=0.15em,parsep=0pt,label=\textbullet}
+
+\begin{document}
+
+%# ---------------------------------------------------------------- header
+\begin{center}
+  {\LARGE\bfseries \VAR{ contact.full_name }}\\[0.35em]
+\BLOCK{ if contact.headline }
+  {\normalsize \VAR{ contact.headline }}\\[0.35em]
+\BLOCK{ endif }
+  \small
+\BLOCK{ set parts = [] }
+\BLOCK{ if contact.location }\BLOCK{ set _ = parts.append(contact.location) }\BLOCK{ endif }
+\BLOCK{ if contact.phone }\BLOCK{ set _ = parts.append(contact.phone) }\BLOCK{ endif }
+\BLOCK{ for part in parts }
+  \VAR{ part }\BLOCK{ if not loop.last } $\cdot$ \BLOCK{ endif }
+\BLOCK{ endfor }
+\BLOCK{ if contact.email }
+\BLOCK{ if parts } $\cdot$ \BLOCK{ endif }
+  \href{mailto:\VAR{ contact.email | url }}{\VAR{ contact.email }}
+\BLOCK{ endif }
+\BLOCK{ for link in contact.links }
+\BLOCK{ if parts or contact.email or not loop.first } $\cdot$ \BLOCK{ endif }
+  \href{\VAR{ link.url | url }}{\VAR{ link.label or (link.url | display) }}
+\BLOCK{ endfor }
+\end{center}
+
+%# --------------------------------------------------------------- summary
+\BLOCK{ if summary }
+\section{Summary}
+\VAR{ summary }
+\BLOCK{ endif }
+
+%# ------------------------------------------------------------ experience
+\BLOCK{ if experience }
+\section{Experience}
+\BLOCK{ for job in experience }
+\entryheading{\textbf{\VAR{ job.title }}}{\textbf{\VAR{ daterange(job) }}}
+\entryheading{\textit{\VAR{ job.company }}}{\textit{\VAR{ job.location }}}
+\BLOCK{ if job.bullets }
+\begin{itemize}
+\BLOCK{ for bullet in job.bullets }
+  \item \VAR{ bullet }
+\BLOCK{ endfor }
+\end{itemize}
+\BLOCK{ endif }
+\BLOCK{ if not loop.last }\vspace{0.6em}\BLOCK{ endif }
+\BLOCK{ endfor }
+\BLOCK{ endif }
+
+%# ------------------------------------------------------------- education
+\BLOCK{ if education }
+\section{Education}
+\BLOCK{ for edu in education }
+\entryheading{\textbf{\VAR{ edu.institution }}}{\textbf{\VAR{ daterange(edu) }}}
+\entryheading{\textit{\VAR{ edu.degree }}}{\textit{\VAR{ edu.location }}}
+\BLOCK{ if edu.grade }
+\VAR{ edu.grade }\\
+\BLOCK{ endif }
+\BLOCK{ if edu.details }
+\VAR{ edu.details }\\
+\BLOCK{ endif }
+\BLOCK{ if not loop.last }\vspace{0.5em}\BLOCK{ endif }
+\BLOCK{ endfor }
+\BLOCK{ endif }
+
+%# ---------------------------------------------------------------- skills
+\BLOCK{ if skills }
+\section{Skills}
+\begin{itemize}[label={},leftmargin=0pt,itemsep=0.15em]
+\BLOCK{ for group in skills }
+  \item \BLOCK{ if group.category }\textbf{\VAR{ group.category }:} \BLOCK{ endif }\VAR{ group.skills | join(', ') }
+\BLOCK{ endfor }
+\end{itemize}
+\BLOCK{ endif }
+
+%# -------------------------------------------------------------- projects
+\BLOCK{ if projects }
+\section{Projects}
+\BLOCK{ for project in projects }
+\BLOCK{ if project.url }
+\entryheading{\textbf{\href{\VAR{ project.url | url }}{\VAR{ project.name }}}\BLOCK{ if project.role } --- \textit{\VAR{ project.role }}\BLOCK{ endif }}{\textbf{\VAR{ daterange(project) }}}
+\BLOCK{ else }
+\entryheading{\textbf{\VAR{ project.name }}\BLOCK{ if project.role } --- \textit{\VAR{ project.role }}\BLOCK{ endif }}{\textbf{\VAR{ daterange(project) }}}
+\BLOCK{ endif }
+\BLOCK{ if project.description }
+\VAR{ project.description }
+\BLOCK{ endif }
+\BLOCK{ if project.bullets }
+\begin{itemize}
+\BLOCK{ for bullet in project.bullets }
+  \item \VAR{ bullet }
+\BLOCK{ endfor }
+\end{itemize}
+\BLOCK{ endif }
+\BLOCK{ if not loop.last }\vspace{0.5em}\BLOCK{ endif }
+\BLOCK{ endfor }
+\BLOCK{ endif }
+
+%# ---------------------------------------------------------- publications
+\BLOCK{ if publications }
+\section{Publications}
+\begin{enumerate}[label={[\arabic*]},leftmargin=2em,itemsep=0.25em,topsep=0.25em,parsep=0pt]
+\BLOCK{ for pub in publications }
+%# Kept on one source line: a `%` line-continuation here would swallow the
+%# spaces between the author, title, venue and year fragments.
+  \item \BLOCK{ if pub.authors }\VAR{ pub.authors }. \BLOCK{ endif }\BLOCK{ if pub.url }\href{\VAR{ pub.url | url }}{\textit{\VAR{ pub.title }}}\BLOCK{ else }\textit{\VAR{ pub.title }}\BLOCK{ endif }.\BLOCK{ if pub.venue } \VAR{ pub.venue }.\BLOCK{ endif }\BLOCK{ if pub.year } \VAR{ pub.year }.\BLOCK{ endif }
+\BLOCK{ endfor }
+\end{enumerate}
+\BLOCK{ endif }
+
+\end{document}

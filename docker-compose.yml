@@ -1,0 +1,32 @@
+services:
+  api:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      ALLOWED_ORIGINS: "http://localhost:5173,http://localhost:8080"
+      COMPILE_WORKERS: "2"
+      COMPILE_TIMEOUT: "20"
+      RATE_LIMIT_COMPILES: "10"
+      RATE_LIMIT_WINDOW: "600"
+      PDF_TTL_SECONDS: "3600"
+    # The compile step runs untrusted LaTeX, so the container gets no more
+    # privilege than it needs and only the two writable paths it actually uses.
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 256
+    mem_limit: 1g
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+      - /var/tmp/resume-pdfs:size=256m,mode=0700,uid=10001,gid=10001
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: "http://localhost:8000"
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
