@@ -208,3 +208,25 @@ def test_validation_errors_name_fields_without_quoting_values(client):
     assert "resume.contact.email" in body["fields"]
     # The bad value itself must not come back to the client.
     assert "definitely-not-email" not in response.text
+
+
+def test_gallery_preview_needs_no_latex_engine(client, monkeypatch):
+    """The shipped sample assets must be served without touching the compiler.
+
+    Browsing templates is the first thing a visitor does; it must not depend on
+    a TeX installation being present and warm.
+    """
+    def explode(*args, **kwargs):
+        raise AssertionError("compile_pdf must not be called for the gallery")
+
+    monkeypatch.setattr(compiler, "compile_pdf", explode)
+    from app import main
+
+    main._preview_cache.clear()
+    main._thumbnail_cache.clear()
+
+    pdf = client.get("/api/templates/classic/preview.pdf")
+    assert pdf.status_code == 200 and pdf.content.startswith(b"%PDF")
+
+    png = client.get("/api/templates/classic/preview.png")
+    assert png.status_code == 200 and png.content.startswith(b"\x89PNG")

@@ -78,6 +78,23 @@ npm run dev          # http://localhost:5173
 for LaTeX, `extraction_enabled` for the model providers, and `sandbox` for
 which compile protections are in force.
 
+### Previews don't need LaTeX
+
+Two things used to make a cold TeX install painful, and neither does now:
+
+- **The template gallery** serves pre-rendered assets committed to the repo
+  (`backend/app/static/previews/`), so browsing templates works with no LaTeX
+  installed at all. Regenerate them with `python scripts/build_previews.py`
+  after changing a template's layout, and commit the result.
+- **The first compile** happens at startup, not in a user's request. A cold
+  MiKTeX install downloads packages and builds format files on first run —
+  tens of seconds. The warm-up absorbs that and logs how long it took. Set
+  `PREWARM_COMPILE=0` to skip it.
+
+The generated PDF is displayed in the page with pdf.js rather than an
+`<object>` embed, which depends on the browser shipping a PDF viewer. Users
+see the actual typeset output before downloading, on any browser.
+
 #### A caveat about running on Windows
 
 Windows has no `RLIMIT_*`, so on Windows the compiler runs with shell-escape
@@ -225,6 +242,7 @@ persisted server-side beyond that, and there are no accounts to attach it to.
 | `LLM_TIMEOUT` | `120` | Seconds per model call |
 | `RATE_LIMIT_WINDOW` | `600` | Rate-limit window, seconds |
 | `PDF_TTL_SECONDS` | `3600` | How long a download link works |
+| `PREWARM_COMPILE` | `1` | Compile the sample at startup so no user waits for a cold engine |
 | `TRUST_PROXY_HEADERS` | unset | Set to `1` only behind a proxy you control |
 | `VITE_API_BASE_URL` | `http://localhost:8000` | API origin, baked into the web build |
 

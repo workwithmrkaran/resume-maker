@@ -14,7 +14,9 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Optional
 
 from fastapi import (Depends, FastAPI, File, HTTPException, Request,
@@ -44,8 +46,39 @@ ALLOWED_ORIGINS = [
     ).split(",") if o.strip()
 ]
 
+# Sample previews are committed to the repo (see scripts/build_previews.py),
+# so browsing templates works with no LaTeX installed at all. Compiling one on
+# demand is only the fallback for a template whose assets are missing.
+PREVIEW_DIR = Path(__file__).parent / "static" / "previews"
+
 _preview_cache: dict[str, bytes] = {}
 _thumbnail_cache: dict[str, bytes] = {}
+
+
+def _shipped(template_id: str, suffix: str) -> Optional[bytes]:
+    path = PREVIEW_DIR / f"{template_id}.{suffix}"
+    return path.read_bytes() if path.exists() else None
+
+
+PREWARM = os.getenv("PREWARM_COMPILE", "1") not in ("0", "false", "no")
+
+
+def _prewarm() -> None:
+    """Compile the sample once at boot, off the request path.
+
+    A cold TeX install downloads packages and builds format files on its first
+    run — tens of seconds on MiKTeX. Paying that at startup means no user ever
+    waits for it, and the log says plainly whether the engine works at all.
+    """
+    import time
+
+    started = time.time()
+    try:
+        compiler.compile_pdf(render_resume(SAMPLE_RESUME))
+        log.info("compiler ready (warm-up took %.1fs)", time.time() - started)
+    except Exception as exc:  # noqa: BLE001 - diagnostic only, never fatal
+        log.warning("compiler warm-up failed after %.1fs: %s — the first real "
+                    "compile may be slow or fail", time.time() - started, exc)
 
 
 @asynccontextmanager
@@ -63,6 +96,8 @@ async def lifespan(app: FastAPI):
     if not compiler.engine_available():
         log.warning("LaTeX engine '%s' not found on PATH — compiles will fail.",
                     compiler.LATEX_ENGINE)
+    elif PREWARM:
+        threading.Thread(target=_prewarm, name="prewarm", daemon=True).start()
     yield
     queue.shutdown()
 
@@ -138,14 +173,19 @@ async def template_preview(template_id: str) -> Response:
         raise HTTPException(status_code=404, detail="Template not found")
 
     if template_id not in _preview_cache:
-        try:
-            tex = render_resume(SAMPLE_RESUME, template_id)
-            _preview_cache[template_id] = compiler.compile_pdf(tex).pdf_bytes
-        except compiler.CompileError as exc:
-            log.error("preview compile failed template=%s: %s\n%s",
-                      template_id, exc, exc.log_excerpt)
-            raise HTTPException(status_code=503,
-                                detail="Preview is unavailable right now.") from None
+        shipped = _shipped(template_id, "pdf")
+        if shipped is not None:
+            _preview_cache[template_id] = shipped
+        else:
+            try:
+                tex = render_resume(SAMPLE_RESUME, template_id)
+                _preview_cache[template_id] = compiler.compile_pdf(tex).pdf_bytes
+            except compiler.CompileError as exc:
+                log.error("preview compile failed template=%s: %s\n%s",
+                          template_id, exc, exc.log_excerpt)
+                raise HTTPException(
+                    status_code=503,
+                    detail="Preview is unavailable right now.") from None
 
     return Response(
         content=_preview_cache[template_id],
@@ -168,8 +208,10 @@ async def template_thumbnail(template_id: str) -> Response:
         raise HTTPException(status_code=404, detail="Template not found")
 
     if template_id not in _thumbnail_cache:
-        pdf = (await template_preview(template_id)).body
-        png = render_first_page_png(pdf)
+        png = _shipped(template_id, "png")
+        if png is None:
+            # No shipped thumbnail: rasterise, which needs poppler.
+            png = render_first_page_png((await template_preview(template_id)).body)
         if png is None:
             raise HTTPException(status_code=503,
                                 detail="Preview image is unavailable right now.")

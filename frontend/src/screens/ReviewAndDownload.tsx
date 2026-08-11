@@ -1,5 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { ResumePreview } from '../components/ResumePreview';
+// pdf.js is ~400kB and is only needed once a PDF actually exists, so it is
+// split out of the initial bundle rather than taxing every first visit.
+const PdfViewer = lazy(() =>
+  import('../components/PdfViewer').then((m) => ({ default: m.PdfViewer })),
+);
 import { absoluteUrl, fetchJob, startCompile } from '../api';
 import type { JobStatus, Resume } from '../types';
 import { validateAll } from '../validation';
@@ -155,9 +160,23 @@ export function ReviewAndDownload({ resume, templateId, onEdit }: Props) {
         </div>
       )}
 
-      <div className="review__preview">
-        <ResumePreview resume={resume} />
-      </div>
+      {/* Once a PDF exists, show the real thing rather than the approximation —
+          no more guessing whether the typeset output matches the preview. */}
+      {job?.status === 'done' && job.download_url ? (
+        <div className="review__pdf">
+          <p className="review__pdf-label">Your compiled PDF</p>
+          <Suspense fallback={<p className="muted">Loading the preview…</p>}>
+            <PdfViewer
+              url={`${absoluteUrl(job.download_url)}?inline=true`}
+              fallbackHref={`${absoluteUrl(job.download_url)}?inline=true`}
+            />
+          </Suspense>
+        </div>
+      ) : (
+        <div className="review__preview">
+          <ResumePreview resume={resume} />
+        </div>
+      )}
     </div>
   );
 }

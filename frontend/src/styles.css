@@ -236,6 +236,17 @@ a.btn { text-decoration: none; display: inline-block; }
 .review__actions { display: flex; gap: 1rem; align-items: center; justify-content: space-between; flex-wrap: wrap; }
 .review__downloads { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin: 0.6rem 0; }
 .review__preview { margin-top: 1.5rem; }
+.review__pdf { margin-top: 1.5rem; }
+.review__pdf-label {
+  font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--ink-soft); margin-bottom: 0.5rem;
+}
+.pdf-viewer__pages { display: flex; flex-direction: column; gap: 1rem; }
+.pdf-viewer canvas {
+  display: block; width: 100%; height: auto; background: #fff;
+  border: 1px solid var(--line); border-radius: 6px; box-shadow: var(--shadow);
+}
+.pdf-viewer__count { margin-top: 0.6rem; text-align: center; }
 
 /* --------------------------------------------------- the "paper" preview
    Mirrors classic.tex.j2's layout: centred header, uppercase ruled sections,
