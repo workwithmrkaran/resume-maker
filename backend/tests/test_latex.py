@@ -57,9 +57,14 @@ def test_newlines_do_not_create_stray_paragraphs():
     assert "\n" not in escape_latex("line one\n\nline two")
 
 
-def test_escape_url_keeps_url_characters_functional():
-    url = "https://example.com/a?b=1&c=2~d"
-    assert escape_url(url) == url  # & and ~ must stay literal inside \href
+def test_escape_url_escapes_ampersand_but_not_tilde():
+    """A query string must not break \href inside a table.
+
+    Raw `&` is a cell separator and derails \href's scanner; `\&` reaches
+    hyperref as a plain `&`. `~` must stay raw — `\~{}` ends up in the link.
+    """
+    assert escape_url("https://example.com/a?b=1&c=2~d") == \
+        r"https://example.com/a?b=1\&c=2~d"
 
 
 def test_escape_url_protects_brace_parsing():

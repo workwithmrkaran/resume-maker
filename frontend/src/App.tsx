@@ -7,8 +7,8 @@ import { FormWizard } from './screens/FormWizard';
 import { ReviewAndDownload } from './screens/ReviewAndDownload';
 import { useAutosavedResume } from './useAutosave';
 import { AiFilledProvider } from './aiFilled';
-import { fetchHealth } from './api';
-import type { JobStatus, Resume } from './types';
+import { fetchHealth, fetchTemplates } from './api';
+import type { JobStatus, Resume, Template } from './types';
 import './styles.css';
 
 type Screen = 'landing' | 'templates' | 'path' | 'upload' | 'form' | 'review';
@@ -22,6 +22,7 @@ export default function App() {
   const [extracted, setExtracted] = useState<Resume | null>(null);
   const [extractionNotes, setExtractionNotes] = useState<string[]>([]);
   const [uploadEnabled, setUploadEnabled] = useState(false);
+  const [templates, setTemplates] = useState<Template[]>([]);
 
   useEffect(() => {
     // The upload path is only offered if the server actually has a model
@@ -29,6 +30,9 @@ export default function App() {
     fetchHealth()
       .then((health) => setUploadEnabled(health.extraction_enabled))
       .catch(() => setUploadEnabled(false));
+    // Fetched here as well as in the gallery, so the review screen's format
+    // switcher works even when someone resumes a draft and skips the gallery.
+    fetchTemplates().then(setTemplates).catch(() => setTemplates([]));
   }, []);
 
   const update = (updater: (current: Resume) => Resume) => setResume(updater(resume));
@@ -122,6 +126,8 @@ export default function App() {
           <ReviewAndDownload
             resume={resume}
             templateId={templateId ?? 'classic'}
+            templates={templates}
+            onTemplateChange={setTemplateId}
             onEdit={() => setScreen('form')}
           />
         )}

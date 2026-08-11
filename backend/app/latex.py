@@ -66,14 +66,21 @@ def escape_latex(value: Any) -> str:
 def escape_url(value: Any) -> str:
     r"""Escape a URL for use inside ``\href{...}``.
 
-    URLs must keep ``~``, ``&`` and friends functional, so the general text
-    escaper is wrong here; only the characters that break TeX's brace parsing
-    get escaped.
+    Narrower than the text escaper: the URL has to survive as a working link,
+    so only what TeX cannot swallow raw is escaped.
+
+    ``&`` matters more than it looks. Raw, it is a cell separator, and a query
+    string inside a ``tabular`` cell derails \href's argument scanning with
+    "Forbidden control sequence found" — a compile failure from an ordinary
+    ``?a=1&b=2`` link. ``\&`` reaches hyperref as a plain ``&``.
+
+    ``~`` is deliberately left alone: ``\~{}`` would land in the link target
+    literally and break the URL.
     """
     if not value:
         return ""
     value = _CONTROL_CHARS.sub("", str(value)).strip()
-    for char in ("\\", "{", "}", "%", "#"):
+    for char in ("\\", "{", "}", "%", "#", "&"):
         value = value.replace(char, "\\" + char)
     return value
 

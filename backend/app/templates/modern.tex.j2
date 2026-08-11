@@ -1,0 +1,237 @@
+%# Modern — based on Harshibar's resume, MIT licensed.
+%# https://github.com/harshibar/common-intern (in turn based on jakeryang/resume)
+%#
+%# Adapted for this project: driven by the canonical resume schema. The
+%# hand-underlined links become plain \href — \myuline needs literal braces
+%# around escaped user text and adds nothing an ATS can read.
+%#
+%# See app/latex.py for the Jinja2 delimiters. Every \VAR{} is auto-escaped.
+%-----------------------------------------------------------------------------
+% The MIT License (MIT) — Copyright (c) Harshibar
+%
+% Permission is hereby granted, free of charge, to any person obtaining a copy
+% of this software and associated documentation files (the "Software"), to deal
+% in the Software without restriction, including without limitation the rights
+% to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+% copies of the Software, and to permit persons to whom the Software is
+% furnished to do so, subject to the following conditions:
+%
+% THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+% IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+% FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+% AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+% LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+% OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+% THE SOFTWARE.
+%-----------------------------------------------------------------------------
+\documentclass[letterpaper,\VAR{ font_size }pt]{article}
+
+\usepackage{latexsym}
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{marvosym}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{verbatim}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+\usepackage[english]{babel}
+\usepackage{tabularx}
+\usepackage{fontawesome5}
+
+\definecolor{light-grey}{gray}{0.83}
+\definecolor{dark-grey}{gray}{0.3}
+\definecolor{text-grey}{gray}{.08}
+
+%# A helvetica-alike sans face. Upstream also loads FiraMono for fixed width;
+%# it isn't used anywhere in the body, so it is dropped rather than shipped as
+%# a dependency that must exist on every machine that compiles this.
+\usepackage{tgheros}
+\renewcommand*\familydefault{\sfdefault}
+\usepackage[T1]{fontenc}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+\addtolength{\oddsidemargin}{-0.5in}
+\addtolength{\evensidemargin}{0in}
+\addtolength{\textwidth}{1in}
+\addtolength{\topmargin}{-.5in}
+\addtolength{\textheight}{1.0in}
+
+\urlstyle{same}
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+\titleformat{\section}{
+    \bfseries \vspace{2pt} \raggedright \large
+}{}{0em}{}[\color{light-grey} {\titlerule[2pt]} \vspace{-4pt}]
+
+\newcommand{\resumeItem}[1]{
+  \item\small{
+    {#1 \vspace{-1pt}}
+  }
+}
+
+\newcommand{\resumeSubheading}[4]{
+  \vspace{-1pt}\item
+    \begin{tabular*}{\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      \textbf{#1} & {\color{dark-grey}\small #2}\vspace{1pt}\\
+      \textit{#3} & {\color{dark-grey} \small #4}\\
+    \end{tabular*}\vspace{-4pt}
+}
+
+\newcommand{\resumeProjectHeading}[2]{
+    \item
+    \begin{tabular*}{\textwidth}{l@{\extracolsep{\fill}}r}
+      #1 & {\color{dark-grey}\small #2} \\
+    \end{tabular*}\vspace{-4pt}
+}
+
+\renewcommand\labelitemii{$\vcenter{\hbox{\tiny$\bullet$}}$}
+
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+\newcommand{\resumeItemListStart}{\begin{itemize}}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{0pt}}
+
+\color{text-grey}
+
+\hypersetup{pdftitle={\VAR{ contact.full_name } — Resume},
+            pdfauthor={\VAR{ contact.full_name }}}
+
+\begin{document}
+
+%# ---------------------------------------------------------------- header
+\begin{center}
+    \textbf{\Huge \VAR{ contact.full_name }} \\ \vspace{5pt}
+\BLOCK{ if contact.headline }
+    \small \VAR{ contact.headline } \\ \vspace{5pt}
+\BLOCK{ endif }
+%# With only a name, there is no contact row at all — emitting the trailing
+%# `\\` then gives "There's no line here to end".
+\BLOCK{ set has_contact = contact.phone or contact.email or contact.location or contact.links }
+\BLOCK{ if has_contact }
+    \small
+\BLOCK{ set shown = [] }
+\BLOCK{ if contact.phone }
+    \faPhone* \hspace{2pt} \texttt{\VAR{ contact.phone }}
+\BLOCK{ set _ = shown.append(1) }
+\BLOCK{ endif }
+\BLOCK{ if contact.email }
+\BLOCK{ if shown } \hspace{1pt} $|$ \hspace{1pt} \BLOCK{ endif }
+    \faEnvelope \hspace{2pt} \href{mailto:\VAR{ contact.email | url }}{\texttt{\VAR{ contact.email }}}
+\BLOCK{ set _ = shown.append(1) }
+\BLOCK{ endif }
+\BLOCK{ if contact.location }
+\BLOCK{ if shown } \hspace{1pt} $|$ \hspace{1pt} \BLOCK{ endif }
+    \faMapMarker* \hspace{2pt} \texttt{\VAR{ contact.location }}
+\BLOCK{ set _ = shown.append(1) }
+\BLOCK{ endif }
+\BLOCK{ for link in contact.links }
+\BLOCK{ if shown or not loop.first } \hspace{1pt} $|$ \hspace{1pt} \BLOCK{ endif }
+    \faLink \hspace{2pt} \href{\VAR{ link.url | url }}{\texttt{\VAR{ link.label or (link.url | display) }}}
+\BLOCK{ endfor }
+    \\ \vspace{-3pt}
+\BLOCK{ endif }
+\end{center}
+
+%# --------------------------------------------------------------- summary
+\BLOCK{ if summary }
+\section{SUMMARY}
+\small \VAR{ summary }
+\vspace{4pt}
+\BLOCK{ endif }
+
+%# ------------------------------------------------------------ experience
+\BLOCK{ if experience }
+\section{EXPERIENCE}
+  \resumeSubHeadingListStart
+\BLOCK{ for job in experience }
+    \resumeSubheading
+      {\VAR{ job.company }}{\VAR{ daterange(job) }}
+      {\VAR{ job.title }}{\VAR{ job.location }}
+\BLOCK{ if job.bullets }
+      \resumeItemListStart
+\BLOCK{ for bullet in job.bullets }
+        \resumeItem{\VAR{ bullet }}
+\BLOCK{ endfor }
+      \resumeItemListEnd
+\BLOCK{ endif }
+\BLOCK{ endfor }
+  \resumeSubHeadingListEnd
+\BLOCK{ endif }
+
+%# -------------------------------------------------------------- projects
+\BLOCK{ if projects }
+\section{PROJECTS}
+    \resumeSubHeadingListStart
+\BLOCK{ for project in projects }
+      \resumeProjectHeading
+          {\textbf{\BLOCK{ if project.url }\href{\VAR{ project.url | url }}{\VAR{ project.name }}\BLOCK{ else }\VAR{ project.name }\BLOCK{ endif }}\BLOCK{ if project.role } --- \textit{\VAR{ project.role }}\BLOCK{ endif }}{\VAR{ daterange(project) }}
+\BLOCK{ if project.description or project.bullets }
+          \resumeItemListStart
+\BLOCK{ if project.description }
+            \resumeItem{\VAR{ project.description }}
+\BLOCK{ endif }
+\BLOCK{ for bullet in project.bullets }
+            \resumeItem{\VAR{ bullet }}
+\BLOCK{ endfor }
+          \resumeItemListEnd
+\BLOCK{ endif }
+\BLOCK{ endfor }
+    \resumeSubHeadingListEnd
+\BLOCK{ endif }
+
+%# ------------------------------------------------------------- education
+\BLOCK{ if education }
+\section{EDUCATION}
+  \resumeSubHeadingListStart
+\BLOCK{ for edu in education }
+    \resumeSubheading
+      {\VAR{ edu.institution }}{\VAR{ daterange(edu) }}
+      {\VAR{ edu.degree }}{\VAR{ edu.location }}
+\BLOCK{ if edu.grade or edu.details }
+      \resumeItemListStart
+\BLOCK{ if edu.grade }
+        \resumeItem{\textbf{Grade}: \VAR{ edu.grade }}
+\BLOCK{ endif }
+\BLOCK{ if edu.details }
+        \resumeItem{\VAR{ edu.details }}
+\BLOCK{ endif }
+      \resumeItemListEnd
+\BLOCK{ endif }
+\BLOCK{ endfor }
+  \resumeSubHeadingListEnd
+\BLOCK{ endif }
+
+%# ---------------------------------------------------------- publications
+\BLOCK{ if publications }
+%# A plain itemize, not the subheading list: `\resumeSubHeadingListStart`
+%# expects a `\resumeSubheading` (which supplies the \item) before any nested
+%# list, and publications have no such header row.
+\section{PUBLICATIONS}
+\begin{itemize}[leftmargin=0.15in, itemsep=2pt]
+\BLOCK{ for pub in publications }
+  \resumeItem{\BLOCK{ if pub.authors }\VAR{ pub.authors }. \BLOCK{ endif }\BLOCK{ if pub.url }\href{\VAR{ pub.url | url }}{\textit{\VAR{ pub.title }}}\BLOCK{ else }\textit{\VAR{ pub.title }}\BLOCK{ endif }.\BLOCK{ if pub.venue } \VAR{ pub.venue }.\BLOCK{ endif }\BLOCK{ if pub.year } \VAR{ pub.year }.\BLOCK{ endif }}
+\BLOCK{ endfor }
+\end{itemize}
+\BLOCK{ endif }
+
+%# ---------------------------------------------------------------- skills
+\BLOCK{ if skills }
+\section{SKILLS}
+ \begin{itemize}[leftmargin=0in, label={}]
+    \small{\item{
+\BLOCK{ for group in skills }
+     \textbf{\VAR{ group.category or 'Skills' }} {: \VAR{ group.skills | join(', ') }}\BLOCK{ if not loop.last }\vspace{2pt} \\\BLOCK{ endif }
+\BLOCK{ endfor }
+    }}
+ \end{itemize}
+\BLOCK{ endif }
+
+\end{document}

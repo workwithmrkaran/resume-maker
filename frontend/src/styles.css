@@ -234,6 +234,12 @@ a.btn { text-decoration: none; display: inline-block; }
 
 /* ----------------------------------------------------------------- review */
 .review__actions { display: flex; gap: 1rem; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.review__template { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; }
+.review__template span { color: var(--ink-soft); }
+.review__template select {
+  font: inherit; padding: 0.4rem 0.6rem; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+}
 .review__downloads { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin: 0.6rem 0; }
 .review__preview { margin-top: 1.5rem; }
 .review__pdf { margin-top: 1.5rem; }

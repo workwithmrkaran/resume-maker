@@ -44,6 +44,36 @@ TEMPLATES: Dict[str, Template] = {
         source="classic.tex.j2",
         options={"font_size": 11, "margin": "1.6cm"},
     ),
+    "compact": Template(
+        id="compact",
+        name="Compact",
+        description="Small-caps headings and a centred header with icons; fits "
+                    "a lot on one page.",
+        best_for="Long histories and academic CVs — publications sit naturally "
+                 "alongside experience.",
+        source="compact.tex.j2",
+        options={"font_size": 11, "scale": 0.9},
+    ),
+    "modern": Template(
+        id="modern",
+        name="Modern",
+        description="Sans-serif, with bold rules under each heading and the "
+                    "employer leading each entry.",
+        best_for="Tech and product roles; reads well when recruiters skim "
+                 "company names first.",
+        source="modern.tex.j2",
+        options={"font_size": 11},
+    ),
+    "technical": Template(
+        id="technical",
+        name="Technical",
+        description="Dense two-column header, education first, skills summary "
+                    "near the top.",
+        best_for="Students and early-career engineers, where coursework and "
+                 "the skills list carry weight.",
+        source="technical.tex.j2",
+        options={"font_size": 11},
+    ),
 }
 
 DEFAULT_TEMPLATE_ID = "classic"

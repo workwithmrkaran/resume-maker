@@ -6,7 +6,7 @@ const PdfViewer = lazy(() =>
   import('../components/PdfViewer').then((m) => ({ default: m.PdfViewer })),
 );
 import { absoluteUrl, fetchJob, startCompile } from '../api';
-import type { JobStatus, Resume } from '../types';
+import type { JobStatus, Resume, Template } from '../types';
 import { validateAll } from '../validation';
 
 const POLL_INTERVAL_MS = 800;
@@ -15,10 +15,18 @@ const POLL_TIMEOUT_MS = 90_000;
 interface Props {
   resume: Resume;
   templateId: string;
+  templates: Template[];
+  onTemplateChange: (templateId: string) => void;
   onEdit: () => void;
 }
 
-export function ReviewAndDownload({ resume, templateId, onEdit }: Props) {
+export function ReviewAndDownload({
+  resume,
+  templateId,
+  templates,
+  onTemplateChange,
+  onEdit,
+}: Props) {
   const [job, setJob] = useState<JobStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -107,6 +115,30 @@ export function ReviewAndDownload({ resume, templateId, onEdit }: Props) {
         <button className="btn btn--ghost" onClick={onEdit}>
           ← Edit details
         </button>
+
+        {/* The whole point of a shared schema: change the layout without
+            retyping anything. Switching discards the old PDF, since it no
+            longer matches what's on screen. */}
+        {templates.length > 1 && (
+          <label className="review__template">
+            <span>Format</span>
+            <select
+              value={templateId}
+              disabled={busy}
+              onChange={(e) => {
+                setJob(null);
+                setError(null);
+                onTemplateChange(e.target.value);
+              }}
+            >
+              {templates.map((template) => (
+                <option key={template.id} value={template.id}>
+                  {template.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <button
           className="btn btn--primary btn--large"
           onClick={generate}

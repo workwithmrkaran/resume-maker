@@ -1,0 +1,202 @@
+%# Technical — based on the resume template by Anubhav Singh, MIT licensed.
+%# https://github.com/xprilion
+%#
+%# Adapted for this project: driven by the canonical resume schema, and the
+%# hardcoded honours/volunteering sections are dropped (the schema has no
+%# equivalent, and inventing one for a single template would be the wrong
+%# trade — those belong in Projects or Experience).
+%#
+%# See app/latex.py for the Jinja2 delimiters. Every \VAR{} is auto-escaped.
+%-----------------------------------------------------------------------------
+% The MIT License (MIT) — Copyright (c) Anubhav Singh
+%
+% Permission is hereby granted, free of charge, to any person obtaining a copy
+% of this software and associated documentation files (the "Software"), to deal
+% in the Software without restriction, including without limitation the rights
+% to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+% copies of the Software, and to permit persons to whom the Software is
+% furnished to do so, subject to the following conditions:
+%
+% THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+% IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+% FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+% AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+% LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+% OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+% THE SOFTWARE.
+%-----------------------------------------------------------------------------
+\documentclass[a4paper,\VAR{ font_size }pt]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{latexsym}
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{marvosym}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{verbatim}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+\addtolength{\oddsidemargin}{-0.530in}
+\addtolength{\evensidemargin}{-0.375in}
+\addtolength{\textwidth}{1in}
+\addtolength{\topmargin}{-.45in}
+\addtolength{\textheight}{1in}
+
+\urlstyle{rm}
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+\hypersetup{colorlinks=false, pdfborder={0 0 0},
+  pdftitle={\VAR{ contact.full_name } — Resume},
+  pdfauthor={\VAR{ contact.full_name }}}
+
+\titleformat{\section}{
+  \vspace{-10pt}\scshape\raggedright\large
+}{}{0em}{}[\color{black}\titlerule \vspace{-6pt}]
+
+\newcommand{\resumeItem}[2]{
+  \item\small{
+    \textbf{#1}{: #2 \vspace{-2pt}}
+  }
+}
+
+\newcommand{\resumePlainItem}[1]{
+  \item\small{{#1 \vspace{-2pt}}}
+}
+
+\newcommand{\resumeSubheading}[4]{
+  \vspace{-1pt}\item
+    \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+      \textbf{#1} & #2 \\
+      \textit{#3} & \textit{#4} \\
+    \end{tabular*}\vspace{-5pt}
+}
+
+\newcommand{\resumeSubItem}[2]{\resumeItem{#1}{#2}\vspace{-3pt}}
+
+\renewcommand{\labelitemii}{$\circ$}
+
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=*]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+\newcommand{\resumeItemListStart}{\begin{itemize}}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-5pt}}
+
+\begin{document}
+
+%# ---------------------------------------------------------------- header
+\begin{tabular*}{\textwidth}{l@{\extracolsep{\fill}}r}
+  \textbf{{\LARGE \VAR{ contact.full_name }}}
+\BLOCK{ if contact.email }
+  & Email: \href{mailto:\VAR{ contact.email | url }}{\VAR{ contact.email }}
+\BLOCK{ endif }
+  \\
+\BLOCK{ if contact.headline }
+  \textit{\VAR{ contact.headline }}
+\BLOCK{ if contact.phone }
+  & Mobile:~~~\VAR{ contact.phone }
+\BLOCK{ endif }
+  \\
+\BLOCK{ elif contact.phone }
+  & Mobile:~~~\VAR{ contact.phone } \\
+\BLOCK{ endif }
+\BLOCK{ for link in contact.links }
+  \href{\VAR{ link.url | url }}{\VAR{ link.label or (link.url | display) }}
+\BLOCK{ if loop.first and contact.location }
+  & \VAR{ contact.location }
+\BLOCK{ endif }
+  \\
+\BLOCK{ endfor }
+\BLOCK{ if contact.location and not contact.links }
+  \VAR{ contact.location } \\
+\BLOCK{ endif }
+\end{tabular*}
+
+%# --------------------------------------------------------------- summary
+\BLOCK{ if summary }
+\section{~~Summary}
+\small \VAR{ summary }
+\vspace{2pt}
+\BLOCK{ endif }
+
+%# ------------------------------------------------------------- education
+\BLOCK{ if education }
+\section{~~Education}
+  \resumeSubHeadingListStart
+\BLOCK{ for edu in education }
+    \resumeSubheading
+      {\VAR{ edu.institution }}{\VAR{ edu.location }}
+      {\VAR{ edu.degree }\BLOCK{ if edu.grade };  \VAR{ edu.grade }\BLOCK{ endif }}{\VAR{ daterange(edu) }}
+\BLOCK{ if edu.details }
+      {\scriptsize \textit{ \footnotesize{\newline{}\VAR{ edu.details }}}}
+\BLOCK{ endif }
+\BLOCK{ endfor }
+  \resumeSubHeadingListEnd
+\BLOCK{ endif }
+
+%# ---------------------------------------------------------------- skills
+\BLOCK{ if skills }
+\vspace{-5pt}
+\section{Skills Summary}
+	\resumeSubHeadingListStart
+\BLOCK{ for group in skills }
+	\resumeSubItem{\VAR{ group.category or 'Skills' }}{\VAR{ group.skills | join(', ') }}
+\BLOCK{ endfor }
+	\resumeSubHeadingListEnd
+\BLOCK{ endif }
+
+%# ------------------------------------------------------------ experience
+\BLOCK{ if experience }
+\vspace{-5pt}
+\section{Experience}
+  \resumeSubHeadingListStart
+\BLOCK{ for job in experience }
+    \resumeSubheading{\VAR{ job.company }}{\VAR{ job.location }}
+    {\VAR{ job.title }}{\VAR{ daterange(job) }}
+\BLOCK{ if job.bullets }
+    \resumeItemListStart
+\BLOCK{ for bullet in job.bullets }
+        \resumePlainItem{\VAR{ bullet }}
+\BLOCK{ endfor }
+    \resumeItemListEnd
+\BLOCK{ endif }
+\BLOCK{ if not loop.last }\vspace{-5pt}\BLOCK{ endif }
+\BLOCK{ endfor }
+  \resumeSubHeadingListEnd
+\BLOCK{ endif }
+
+%# -------------------------------------------------------------- projects
+\BLOCK{ if projects }
+\vspace{-5pt}
+\section{Projects}
+\resumeSubHeadingListStart
+\BLOCK{ for project in projects }
+\resumeSubItem{\VAR{ project.name }\BLOCK{ if project.role } (\VAR{ project.role })\BLOCK{ endif }}{\VAR{ project.description }\BLOCK{ for bullet in project.bullets } \VAR{ bullet }\BLOCK{ endfor }\BLOCK{ if daterange(project) } (\VAR{ daterange(project) })\BLOCK{ endif }}
+\vspace{2pt}
+\BLOCK{ endfor }
+\resumeSubHeadingListEnd
+\BLOCK{ endif }
+
+%# ---------------------------------------------------------- publications
+\BLOCK{ if publications }
+\vspace{-5pt}
+\section{Publications}
+\resumeSubHeadingListStart
+\BLOCK{ for pub in publications }
+\resumeSubItem{\VAR{ pub.title }}{\BLOCK{ if pub.authors }\VAR{ pub.authors }. \BLOCK{ endif }\BLOCK{ if pub.venue }\VAR{ pub.venue }.\BLOCK{ endif }\BLOCK{ if pub.year } \VAR{ pub.year }.\BLOCK{ endif }}
+\vspace{2pt}
+\BLOCK{ endfor }
+\resumeSubHeadingListEnd
+\BLOCK{ endif }
+
+\end{document}

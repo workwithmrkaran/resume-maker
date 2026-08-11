@@ -38,8 +38,10 @@ export function TemplateGallery({
     <div className="screen">
       <header className="screen__header">
         <h2>Choose a format</h2>
-        <p className="muted">More formats are on the way. Each one uses the same details, so you'll
-          be able to switch without retyping anything.</p>
+        <p className="muted">
+          Every format uses the same details, so you can switch at any point — including after
+          you've filled the form in — without retyping anything.
+        </p>
       </header>
 
       {templates === null ? (

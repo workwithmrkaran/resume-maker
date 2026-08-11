@@ -1,0 +1,194 @@
+%# Compact — based on autoCV by Jitin Nair, MIT licensed.
+%# https://github.com/jitinnair1/autoCV
+%#
+%# Adapted for this project: driven by the canonical resume schema, with the
+%# biblatex/citations.bib publications section replaced by the schema's own
+%# publications list (no .bib file to ship or escape).
+%#
+%# See app/latex.py for the Jinja2 delimiters. Every \VAR{} is auto-escaped.
+%-----------------------------------------------------------------------------
+% The MIT License (MIT)
+%
+% Copyright (c) 2021 Jitin Nair
+%
+% Permission is hereby granted, free of charge, to any person obtaining a copy
+% of this software and associated documentation files (the "Software"), to deal
+% in the Software without restriction, including without limitation the rights
+% to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+% copies of the Software, and to permit persons to whom the Software is
+% furnished to do so, subject to the following conditions:
+%
+% THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+% IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+% FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+% AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+% LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+% OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+% THE SOFTWARE.
+%-----------------------------------------------------------------------------
+\documentclass[a4paper,\VAR{ font_size }pt]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{url}
+\usepackage{parskip}
+
+\RequirePackage{color}
+\RequirePackage{graphicx}
+\usepackage[usenames,dvipsnames]{xcolor}
+\usepackage[scale=\VAR{ scale }]{geometry}
+
+\usepackage{tabularx}
+\usepackage{enumitem}
+\newcolumntype{C}{>{\centering\arraybackslash}X}
+
+\usepackage{supertabular}
+\newlength{\fullcollw}
+\setlength{\fullcollw}{0.47\textwidth}
+
+\usepackage{titlesec}
+\usepackage{multicol}
+\usepackage{multirow}
+
+\titleformat{\section}{\Large\scshape\raggedright}{}{0em}{}[\titlerule]
+\titlespacing{\section}{0pt}{10pt}{10pt}
+
+\usepackage[unicode, draft=false]{hyperref}
+\definecolor{linkcolour}{rgb}{0,0.2,0.6}
+\hypersetup{colorlinks,breaklinks,urlcolor=linkcolour,linkcolor=linkcolour,
+  pdftitle={\VAR{ contact.full_name } — Resume},
+  pdfauthor={\VAR{ contact.full_name }}}
+
+\usepackage{fontawesome5}
+
+%# A role with no bullet points renders as a single header row; one with
+%# bullets opens an itemize block. Two environments, exactly as upstream.
+\newenvironment{jobshort}[2]
+    {
+    \begin{tabularx}{\linewidth}{@{}l X r@{}}
+    \textbf{#1} & \hfill & #2 \\[3.75pt]
+    \end{tabularx}
+    }
+    {
+    }
+
+\newenvironment{joblong}[2]
+    {
+    \begin{tabularx}{\linewidth}{@{}l X r@{}}
+    \textbf{#1} & \hfill & #2 \\[3.75pt]
+    \end{tabularx}
+    \begin{minipage}[t]{\linewidth}
+    \begin{itemize}[nosep,after=\strut, leftmargin=1em, itemsep=3pt,label=--]
+    }
+    {
+    \end{itemize}
+    \end{minipage}
+    }
+
+\begin{document}
+\pagestyle{empty}
+
+%# ---------------------------------------------------------------- header
+\begin{tabularx}{\linewidth}{@{} C @{}}
+\Huge{\VAR{ contact.full_name }} \\[7.5pt]
+\BLOCK{ if contact.headline }
+\normalsize{\VAR{ contact.headline }} \\[5pt]
+\BLOCK{ endif }
+\BLOCK{ set bits = [] }
+\BLOCK{ if contact.email }\BLOCK{ set _ = bits.append('email') }\BLOCK{ endif }
+\BLOCK{ if contact.phone }\BLOCK{ set _ = bits.append('phone') }\BLOCK{ endif }
+\BLOCK{ if contact.location }\BLOCK{ set _ = bits.append('location') }\BLOCK{ endif }
+\BLOCK{ if contact.email }
+\href{mailto:\VAR{ contact.email | url }}{\raisebox{-0.05\height}\faEnvelope\ \VAR{ contact.email }}
+\BLOCK{ endif }
+\BLOCK{ if contact.phone }
+\BLOCK{ if contact.email } \ $|$ \ \BLOCK{ endif }
+{\raisebox{-0.05\height}\faMobile\ \VAR{ contact.phone }}
+\BLOCK{ endif }
+\BLOCK{ if contact.location }
+\BLOCK{ if bits | length > 1 } \ $|$ \ \BLOCK{ endif }
+{\raisebox{-0.05\height}\faMapMarker*\ \VAR{ contact.location }}
+\BLOCK{ endif }
+\BLOCK{ for link in contact.links }
+\BLOCK{ if bits or not loop.first } \ $|$ \ \BLOCK{ endif }
+\href{\VAR{ link.url | url }}{\raisebox{-0.05\height}\faGlobe\ \VAR{ link.label or (link.url | display) }}
+\BLOCK{ endfor }
+\\
+\end{tabularx}
+
+%# --------------------------------------------------------------- summary
+\BLOCK{ if summary }
+\section{Summary}
+\VAR{ summary }
+\BLOCK{ endif }
+
+%# ------------------------------------------------------------ experience
+\BLOCK{ if experience }
+\section{Work Experience}
+\BLOCK{ for job in experience }
+\BLOCK{ if job.bullets }
+\begin{joblong}{\VAR{ job.title }, \VAR{ job.company }\BLOCK{ if job.location } --- \VAR{ job.location }\BLOCK{ endif }}{\VAR{ daterange(job) }}
+\BLOCK{ for bullet in job.bullets }
+\item \VAR{ bullet }
+\BLOCK{ endfor }
+\end{joblong}
+\BLOCK{ else }
+\begin{jobshort}{\VAR{ job.title }, \VAR{ job.company }\BLOCK{ if job.location } --- \VAR{ job.location }\BLOCK{ endif }}{\VAR{ daterange(job) }}
+\end{jobshort}
+\BLOCK{ endif }
+%# Roles run together without this — upstream assumes hand-tuned spacing.
+\BLOCK{ if not loop.last }\vspace{6pt}\BLOCK{ endif }
+\BLOCK{ endfor }
+\BLOCK{ endif }
+
+%# -------------------------------------------------------------- projects
+\BLOCK{ if projects }
+\section{Projects}
+\BLOCK{ for project in projects }
+\begin{tabularx}{\linewidth}{ @{}l r@{} }
+\textbf{\VAR{ project.name }}\BLOCK{ if project.role } --- \textit{\VAR{ project.role }}\BLOCK{ endif } & \hfill \BLOCK{ if project.url }\href{\VAR{ project.url | url }}{\VAR{ project.url | display }}\BLOCK{ else }\VAR{ daterange(project) }\BLOCK{ endif } \\[3.75pt]
+\BLOCK{ if project.description }
+\multicolumn{2}{@{}X@{}}{\VAR{ project.description }} \\
+\BLOCK{ endif }
+\BLOCK{ for bullet in project.bullets }
+\multicolumn{2}{@{}X@{}}{-- \VAR{ bullet }} \\
+\BLOCK{ endfor }
+\end{tabularx}
+\BLOCK{ endfor }
+\BLOCK{ endif }
+
+%# ------------------------------------------------------------- education
+\BLOCK{ if education }
+\section{Education}
+\begin{tabularx}{\linewidth}{@{}l X@{}}
+\BLOCK{ for edu in education }
+\VAR{ daterange(edu) } & \VAR{ edu.degree } at \textbf{\VAR{ edu.institution }}\BLOCK{ if edu.grade } \hfill \normalsize (\VAR{ edu.grade })\BLOCK{ endif } \\
+\BLOCK{ if edu.details }
+ & \normalsize{\VAR{ edu.details }} \\
+\BLOCK{ endif }
+\BLOCK{ endfor }
+\end{tabularx}
+\BLOCK{ endif }
+
+%# ---------------------------------------------------------- publications
+\BLOCK{ if publications }
+\section{Publications}
+\begin{itemize}[leftmargin=1.2em, itemsep=4pt, label=--]
+\BLOCK{ for pub in publications }
+  \item \BLOCK{ if pub.authors }\VAR{ pub.authors }. \BLOCK{ endif }\BLOCK{ if pub.url }\href{\VAR{ pub.url | url }}{\textit{\VAR{ pub.title }}}\BLOCK{ else }\textit{\VAR{ pub.title }}\BLOCK{ endif }.\BLOCK{ if pub.venue } \VAR{ pub.venue }.\BLOCK{ endif }\BLOCK{ if pub.year } \VAR{ pub.year }.\BLOCK{ endif }
+\BLOCK{ endfor }
+\end{itemize}
+\BLOCK{ endif }
+
+%# ---------------------------------------------------------------- skills
+\BLOCK{ if skills }
+\section{Skills}
+\begin{tabularx}{\linewidth}{@{}l X@{}}
+\BLOCK{ for group in skills }
+\VAR{ group.category or 'Skills' } & \normalsize{\VAR{ group.skills | join(', ') }} \\
+\BLOCK{ endfor }
+\end{tabularx}
+\BLOCK{ endif }
+
+\end{document}

@@ -4,9 +4,10 @@ A free web app that turns a guided form into a professionally typeset PDF
 resume, compiled from a real LaTeX template. No account, no paywall, no LaTeX
 knowledge required.
 
-This repository implements **Phase 1** (manual fill, single template, compile
-and download) and **Phase 2** (upload an existing resume, AI extraction, review
-and edit) of the product plan.
+This repository implements **Phase 1** (manual fill, compile and download),
+**Phase 2** (upload an existing resume, AI extraction, review and edit) and the
+template half of **Phase 3** (four formats, switchable from the review screen
+without re-entering anything).
 
 | Landing | Guided form | AI pre-fill | Compiled output |
 |---|---|---|---|
@@ -109,10 +110,11 @@ each compile is isolated in its own throwaway container.
 ## Tests
 
 ```bash
-cd backend  && python -m pytest        # 101 tests; compile tests skip if TeX is missing
+cd backend  && python -m pytest        # 137 tests; compile tests skip if TeX is missing
 cd frontend && npm test                # form logic and validation
 cd frontend && node e2e/flow.mjs       # manual path, in a real browser
 cd frontend && node e2e/upload.mjs     # AI upload path, in a real browser
+cd frontend && node e2e/templates.mjs  # all four formats, switched from one dataset
 ```
 
 The backend suite compiles deliberately hostile input (`\write18{…}`,
@@ -246,13 +248,36 @@ persisted server-side beyond that, and there are no accounts to attach it to.
 | `TRUST_PROXY_HEADERS` | unset | Set to `1` only behind a proxy you control |
 | `VITE_API_BASE_URL` | `http://localhost:8000` | API origin, baked into the web build |
 
-## Adding a template (Phase 3)
+## Templates
+
+| Format | Based on | Best for |
+|---|---|---|
+| **Classic** | written for this project | ATS-friendly; industry roles across most fields |
+| **Compact** | [autoCV](https://github.com/jitinnair1/autoCV) by Jitin Nair (MIT) | Long histories and academic CVs |
+| **Modern** | [Harshibar's resume](https://github.com/harshibar/common-intern) (MIT), after jakeryang/resume | Tech and product roles |
+| **Technical** | template by [Anubhav Singh](https://github.com/xprilion) (MIT) | Students and early-career engineers |
+
+The three adapted templates keep their upstream MIT notices at the top of each
+`.tex.j2`. Each was changed to read from the canonical schema rather than
+hardcoded content; where a template had a section the schema has no field for
+(Compact's biblatex bibliography, Technical's honours and volunteering), the
+section was replaced or dropped rather than bolting a one-template field onto
+the shared data model. Each file's header comment says what changed and why.
+
+Because the schema is shared, the review screen offers a format switcher: the
+same data re-renders into any layout, which is the Phase 3 promise.
+
+### Adding another
 
 1. Drop a `.tex.j2` file in `backend/app/templates/`, using `\VAR{}` / `\BLOCK{}`
    delimiters against the existing schema.
 2. Add one entry to `TEMPLATES` in `backend/app/templates_registry.py`.
+3. Run `python scripts/build_previews.py` and commit the generated assets.
 
-The gallery, the form, the compile pipeline and the data model need no changes.
+`tests/test_templates.py` then covers it automatically — rendering, escaping
+under hostile input, a minimal resume, a full one, and that its preview assets
+exist. The gallery, the form, the compile pipeline and the data model need no
+changes.
 
 ## What's deliberately not here
 

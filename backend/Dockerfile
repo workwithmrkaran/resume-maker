@@ -9,7 +9,13 @@ ENV PYTHONUNBUFFERED=1 \
 
 # texlive-latex-extra supplies titlesec/enumitem; lmodern supplies the Type1
 # fonts the template needs (without it pdflatex falls back to slow bitmap
-# fonts); poppler-utils rasterises template thumbnails.
+# fonts); poppler-utils rasterises template thumbnails; tex-gyre supplies the
+# Heros sans face and texlive-fonts-extra the FontAwesome icons that the
+# Modern/Compact/Technical templates use.
+#
+# texlive-fonts-extra is ~1GB unpacked — by far the largest layer here, and the
+# price of the icon glyphs in those templates. Drop it (and the fontawesome5
+# usage) if image size matters more than the icons.
 # --no-install-recommends keeps the image from pulling all of TeX Live.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         texlive-latex-base \
@@ -18,6 +24,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         texlive-fonts-recommended \
         lmodern \
         poppler-utils \
+        tex-gyre \
+        texlive-fonts-extra \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /srv
