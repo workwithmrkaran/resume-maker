@@ -25,6 +25,7 @@ export function ContactStep({ resume, errors, patch }: StepProps) {
       <TextInput
         label="Full name"
         value={contact.full_name}
+        path="contact.full_name"
         error={errors['contact.full_name']}
         placeholder="Alex Rivera"
         onChange={(v) => set({ full_name: v })}
@@ -33,6 +34,7 @@ export function ContactStep({ resume, errors, patch }: StepProps) {
         label="Headline"
         optional
         value={contact.headline}
+        path="contact.headline"
         hint="One line under your name — e.g. your role and focus."
         placeholder="Backend Engineer — distributed systems"
         onChange={(v) => set({ headline: v })}
@@ -42,6 +44,7 @@ export function ContactStep({ resume, errors, patch }: StepProps) {
           label="Email"
           type="email"
           value={contact.email ?? ''}
+          path="contact.email"
           error={errors['contact.email']}
           placeholder="alex@example.com"
           onChange={(v) => set({ email: v })}
@@ -51,6 +54,7 @@ export function ContactStep({ resume, errors, patch }: StepProps) {
           type="tel"
           optional
           value={contact.phone}
+          path="contact.phone"
           placeholder="+1 (555) 014-2288"
           onChange={(v) => set({ phone: v })}
         />
@@ -59,6 +63,7 @@ export function ContactStep({ resume, errors, patch }: StepProps) {
         label="Location"
         optional
         value={contact.location}
+        path="contact.location"
         placeholder="Austin, TX"
         onChange={(v) => set({ location: v })}
       />
@@ -76,6 +81,7 @@ export function ContactStep({ resume, errors, patch }: StepProps) {
             <TextInput
               label="Label"
               value={link.label}
+              path={`contact.links.${index}.label`}
               placeholder="LinkedIn"
               onChange={(v) => update({ label: v })}
             />
@@ -83,6 +89,7 @@ export function ContactStep({ resume, errors, patch }: StepProps) {
               label="Address"
               type="url"
               value={link.url}
+              path={`contact.links.${index}.url`}
               error={errors[`contact.links.${index}.url`]}
               placeholder="linkedin.com/in/alexrivera"
               maxLength={300}
@@ -102,6 +109,7 @@ export function SummaryStep({ resume, errors, patch }: StepProps) {
       optional
       rows={6}
       value={resume.summary}
+      path="summary"
       error={errors['summary']}
       hint="Two or three sentences: what you do, how long, and what you're best at."
       placeholder="Backend engineer with six years building high-throughput services…"
@@ -126,6 +134,7 @@ export function ExperienceStep({ resume, errors, patch }: StepProps) {
             <TextInput
               label="Job title"
               value={job.title}
+              path={`experience.${index}.title`}
               error={errors[`experience.${index}.title`]}
               placeholder="Senior Software Engineer"
               onChange={(v) => update({ title: v })}
@@ -133,6 +142,7 @@ export function ExperienceStep({ resume, errors, patch }: StepProps) {
             <TextInput
               label="Company"
               value={job.company}
+              path={`experience.${index}.company`}
               error={errors[`experience.${index}.company`]}
               placeholder="Northwind Data"
               onChange={(v) => update({ company: v })}
@@ -142,17 +152,20 @@ export function ExperienceStep({ resume, errors, patch }: StepProps) {
             label="Location"
             optional
             value={job.location}
+            path={`experience.${index}.location`}
             placeholder="Austin, TX or Remote"
             onChange={(v) => update({ location: v })}
           />
           <DateRange
             start={job.start_date}
             end={job.end_date}
+            path={`experience.${index}`}
             onChange={(start_date, end_date) => update({ start_date, end_date })}
           />
           <BulletList
             label="What you did"
             bullets={job.bullets}
+            path={`experience.${index}.bullets`}
             hint="One achievement per line. Lead with the result and include a number where you can."
             onChange={(bullets) => update({ bullets })}
           />
@@ -179,6 +192,7 @@ export function EducationStep({ resume, errors, patch }: StepProps) {
             <TextInput
               label="Degree or qualification"
               value={edu.degree}
+              path={`education.${index}.degree`}
               error={errors[`education.${index}.degree`]}
               placeholder="B.S. Computer Science"
               onChange={(v) => update({ degree: v })}
@@ -186,6 +200,7 @@ export function EducationStep({ resume, errors, patch }: StepProps) {
             <TextInput
               label="Institution"
               value={edu.institution}
+              path={`education.${index}.institution`}
               error={errors[`education.${index}.institution`]}
               placeholder="University of Texas at Austin"
               onChange={(v) => update({ institution: v })}
@@ -202,6 +217,7 @@ export function EducationStep({ resume, errors, patch }: StepProps) {
               label="Grade"
               optional
               value={edu.grade}
+              path={`education.${index}.grade`}
               placeholder="GPA 3.8/4.0 or First Class"
               onChange={(v) => update({ grade: v })}
             />
@@ -209,6 +225,7 @@ export function EducationStep({ resume, errors, patch }: StepProps) {
           <DateRange
             start={edu.start_date}
             end={edu.end_date}
+            path={`education.${index}`}
             endPlaceholder="2019"
             onChange={(start_date, end_date) => update({ start_date, end_date })}
           />
@@ -216,6 +233,7 @@ export function EducationStep({ resume, errors, patch }: StepProps) {
             label="Details"
             optional
             value={edu.details}
+            path={`education.${index}.details`}
             maxLength={300}
             placeholder="Relevant coursework, honours, thesis"
             onChange={(v) => update({ details: v })}
@@ -237,11 +255,12 @@ export function SkillsStep({ resume, patch }: StepProps) {
       itemLabel={(group, i) => group.category || `Group ${i + 1}`}
       emptyMessage="Group your skills so they scan quickly — e.g. Languages, Tools."
     >
-      {(group, _index, update) => (
+      {(group, index, update) => (
         <>
           <TextInput
             label="Category"
             value={group.category}
+            path={`skills.${index}.category`}
             placeholder="Languages"
             onChange={(v) => update({ category: v })}
           />
@@ -273,6 +292,7 @@ export function ProjectsStep({ resume, errors, patch }: StepProps) {
             <TextInput
               label="Project name"
               value={project.name}
+              path={`projects.${index}.name`}
               error={errors[`projects.${index}.name`]}
               placeholder="queuelite"
               onChange={(v) => update({ name: v })}
@@ -304,12 +324,14 @@ export function ProjectsStep({ resume, errors, patch }: StepProps) {
             optional
             rows={2}
             value={project.description}
+            path={`projects.${index}.description`}
             placeholder="A dependency-free job queue for Postgres."
             onChange={(v) => update({ description: v })}
           />
           <BulletList
             label="Highlights"
             bullets={project.bullets}
+            path={`projects.${index}.bullets`}
             onChange={(bullets) => update({ bullets })}
           />
         </>
@@ -337,6 +359,7 @@ export function PublicationsStep({ resume, errors, patch }: StepProps) {
             <TextInput
               label="Title"
               value={pub.title}
+              path={`publications.${index}.title`}
               error={errors[`publications.${index}.title`]}
               maxLength={300}
               onChange={(v) => update({ title: v })}

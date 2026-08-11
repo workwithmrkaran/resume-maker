@@ -12,3 +12,7 @@ dist/
 *.log
 .DS_Store
 e2e-screenshots/
+
+# Secrets
+.env
+.env.local

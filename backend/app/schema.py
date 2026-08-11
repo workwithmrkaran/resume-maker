@@ -172,6 +172,12 @@ class CompileRequest(_Base):
 class JobStatus(_Base):
     job_id: str
     status: str  # queued | running | done | error
+    kind: str = "compile"
     # Plain-language status line for the UI — never a raw compiler error.
     message: str = ""
     download_url: Optional[str] = None
+    # Extraction jobs only:
+    resume: Optional[Resume] = None
+    confidence: Optional[float] = None
+    low_confidence: bool = False
+    warnings: List[str] = []

@@ -4,18 +4,21 @@ A free web app that turns a guided form into a professionally typeset PDF
 resume, compiled from a real LaTeX template. No account, no paywall, no LaTeX
 knowledge required.
 
-This repository implements **Phase 1** of the product plan: manual fill, a
-single template, compile and download.
+This repository implements **Phase 1** (manual fill, single template, compile
+and download) and **Phase 2** (upload an existing resume, AI extraction, review
+and edit) of the product plan.
 
-| Landing | Guided form | Compiled output |
-|---|---|---|
-| ![Landing page](docs/landing.png) | ![Guided form](docs/form.png) | ![Compiled PDF](docs/output.png) |
+| Landing | Guided form | AI pre-fill | Compiled output |
+|---|---|---|---|
+| ![Landing page](docs/landing.png) | ![Guided form](docs/form.png) | ![AI-filled form](docs/ai-prefill.png) | ![Compiled PDF](docs/output.png) |
 
 ## How it works
 
 ```
-form input → validate (Pydantic) → escape → render Jinja2 → .tex
-           → queued compile job → sandboxed pdflatex → PDF → short-lived download link
+form input ─┐
+            ├→ validate (Pydantic) → escape → render Jinja2 → .tex
+upload ─────┘   → queued compile job → sandboxed pdflatex → PDF → short-lived link
+  └→ extract text (PDF/DOCX) → LLM → validate → pre-fill the same form
 ```
 
 The canonical resume schema (`backend/app/schema.py`) sits at the centre: the
@@ -63,9 +66,10 @@ npm run dev          # http://localhost:5173
 ## Tests
 
 ```bash
-cd backend  && python -m pytest        # 53 tests; compile tests skip if TeX is missing
+cd backend  && python -m pytest        # 101 tests; compile tests skip if TeX is missing
 cd frontend && npm test                # form logic and validation
-cd frontend && node e2e/flow.mjs       # full browser run-through (needs both servers up)
+cd frontend && node e2e/flow.mjs       # manual path, in a real browser
+cd frontend && node e2e/upload.mjs     # AI upload path, in a real browser
 ```
 
 The backend suite compiles deliberately hostile input (`\write18{…}`,
@@ -81,6 +85,7 @@ security boundary here, not a formatting nicety.
 | `GET` | `/api/templates/{id}/preview.png` | Sample resume thumbnail |
 | `GET` | `/api/templates/{id}/preview.pdf` | Full sample PDF |
 | `POST` | `/api/compile` | Enqueue a compile → `202 { job_id }` |
+| `POST` | `/api/extract` | Upload a resume for AI extraction → `202 { job_id }` |
 | `GET` | `/api/jobs/{job_id}` | `queued` / `running` / `done` / `error` |
 | `GET` | `/api/download/{token}` | The generated PDF |
 
@@ -88,6 +93,56 @@ Compilation is asynchronous because it takes seconds and must not block the API
 process. `JobQueue` (`backend/app/jobs.py`) is an in-process thread pool shaped
 like a task queue; moving to Celery/RQ + Redis means replacing that one module,
 not redesigning the API.
+
+## AI extraction (Phase 2)
+
+Upload a PDF or DOCX and the text is sent to an LLM that returns the same
+canonical JSON the manual form produces. The user then reviews and edits it in
+that form — mandatory, never skipped — before anything compiles.
+
+**Providers and failover.** Free-tier API keys run out, so providers are a
+chain, configured as numbered blocks in `backend/.env`:
+
+```
+LLM_PROVIDER_1_MODEL=nvidia/nemotron-3-super-120b-a12b
+LLM_PROVIDER_1_API_KEY=nvapi-…
+LLM_PROVIDER_1_BASE_URL=https://integrate.api.nvidia.com/v1
+
+LLM_PROVIDER_2_MODEL=openai/gpt-oss-20b
+LLM_PROVIDER_2_API_KEY=nvapi-…
+```
+
+When provider 1 is rate-limited, out of quota, or down (429/402/401/5xx, or a
+connection failure), provider 2 serves the request and the user sees nothing.
+A 400 does not fail over: that means *we* sent something malformed, and the
+next provider would reject it identically. Add `_3`, `_4` blocks to extend the
+chain; the endpoints are OpenAI-compatible, so a provider can point at
+Anthropic, OpenAI, or a local vLLM without touching code.
+
+Copy `backend/.env.example` to `backend/.env` and add your keys. `.env` is
+git-ignored — keep it that way.
+
+**Handling model output.** Replies are stripped of fences and `<think>`
+scratchpads, unknown keys are dropped (the schema forbids them, and one
+invented field would otherwise discard a good extraction), common shape
+mistakes are coerced (a flat skills list, a bullets string, a bare link), and
+the result is validated with Pydantic. On a validation failure there is exactly
+one repair round that tells the model which fields broke — never quoting their
+values.
+
+**Confidence.** A rough completeness score decides whether the review screen
+says "check this carefully" more loudly. It is a heuristic, not a probability.
+
+**Verify your keys:**
+
+```bash
+cd backend && python scripts/check_llm.py                  # ping each provider
+python scripts/check_llm.py path/to/resume.pdf             # full extraction
+```
+
+`scripts/fake_llm_server.py` is an OpenAI-compatible stand-in for local work
+and for the browser e2e run; `FAKE_LLM_STATUS=429` makes it fail so you can
+watch the chain fail over.
 
 ## Safety
 
@@ -111,11 +166,18 @@ Every compile runs LaTeX over text an untrusted user supplied, so:
   the template.
 - **No leaking internals.** Users see "something went wrong generating your
   PDF"; the TeX log goes to the server log only, and resume content never does.
+- **Uploads.** Type is decided by magic bytes, not the filename; size is capped
+  at 5 MB and page count at 10; the bytes are held in memory for the length of
+  the job and never written to disk. Prompts, replies and API keys are kept out
+  of the logs.
 
 ## Privacy
 
 Resume content stays in the browser (`localStorage` autosave) until the user
-presses Generate. Generated PDFs live in a temp store keyed by an unguessable
+presses Generate — or, on the upload path, until they choose a file. Uploaded
+files are parsed in memory and discarded when the job ends; the extracted text
+goes to the configured model provider and nowhere else, which the upload screen
+says plainly. Generated PDFs live in a temp store keyed by an unguessable
 token and are deleted after `PDF_TTL_SECONDS` (default one hour). Nothing is
 persisted server-side beyond that, and there are no accounts to attach it to.
 
@@ -131,6 +193,9 @@ persisted server-side beyond that, and there are no accounts to attach it to.
 | `COMPILE_WORKERS` | `2` | Concurrent compiles |
 | `COMPILE_QUEUE_DEPTH` | `50` | Jobs in flight before returning 503 |
 | `RATE_LIMIT_COMPILES` | `10` | Compiles per client per window |
+| `RATE_LIMIT_EXTRACTIONS` | `5` | Uploads per client per window (a shared quota) |
+| `LLM_PROVIDER_N_*` | — | Provider chain — see AI extraction above |
+| `LLM_TIMEOUT` | `120` | Seconds per model call |
 | `RATE_LIMIT_WINDOW` | `600` | Rate-limit window, seconds |
 | `PDF_TTL_SECONDS` | `3600` | How long a download link works |
 | `TRUST_PROXY_HEADERS` | unset | Set to `1` only behind a proxy you control |
@@ -146,10 +211,10 @@ The gallery, the form, the compile pipeline and the data model need no changes.
 
 ## What's deliberately not here
 
-Per the product plan, Phase 1 excludes accounts, saved drafts on the server,
-AI resume upload, multiple templates and payments. The upload path is visible
-in the UI as a disabled "coming soon" card so Phase 2 slots in without a
-redesign.
+Still out of scope: accounts, saved drafts on the server, multiple templates
+(Phase 3) and payments (never). Scanned/image-only PDFs are detected and
+reported rather than OCR'd — a vision model is the better answer there than
+bolting on Tesseract, and it is a separate piece of work.
 
 Two implementation notes worth knowing before scaling up:
 
@@ -157,3 +222,6 @@ Two implementation notes worth knowing before scaling up:
   for one API process; running several means moving both to Redis.
 - Rate limiting is per client IP, which is the right MVP default but is shared
   by everyone behind one NAT.
+- Extraction quality is only as good as the configured model. Before trusting
+  it, build a small eval set of real resumes with hand-written expected JSON
+  and compare providers on it — the code makes swapping them an `.env` change.

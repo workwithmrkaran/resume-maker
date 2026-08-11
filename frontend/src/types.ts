@@ -80,9 +80,15 @@ export type JobState = 'queued' | 'running' | 'done' | 'error';
 
 export interface JobStatus {
   job_id: string;
+  kind: 'compile' | 'extract';
   status: JobState;
   message: string;
   download_url: string | null;
+  // Extraction jobs only:
+  resume: Resume | null;
+  confidence: number | null;
+  low_confidence: boolean;
+  warnings: string[];
 }
 
 export const emptyExperience = (): Experience => ({

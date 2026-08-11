@@ -6,22 +6,34 @@
  * these, so field behaviour (labels, hints, inline errors) stays consistent.
  */
 import { useId, type ReactNode } from 'react';
+import { useAiFilled } from '../aiFilledContext';
 
 interface FieldShellProps {
   label: string;
   hint?: string;
   error?: string;
   optional?: boolean;
+  aiFilled?: boolean;
   htmlFor: string;
   children: ReactNode;
 }
 
-function FieldShell({ label, hint, error, optional, htmlFor, children }: FieldShellProps) {
+/** Marks a value the AI extracted and the user hasn't touched yet. */
+export function AiBadge() {
+  return (
+    <span className="ai-badge" title="Filled in from your uploaded resume — please check it">
+      AI-filled
+    </span>
+  );
+}
+
+function FieldShell({ label, hint, error, optional, aiFilled, htmlFor, children }: FieldShellProps) {
   return (
     <div className={`field${error ? ' field--error' : ''}`}>
       <label className="field__label" htmlFor={htmlFor}>
         {label}
         {optional && <span className="field__optional">optional</span>}
+        {aiFilled && <AiBadge />}
       </label>
       {children}
       {hint && !error && <p className="field__hint">{hint}</p>}
@@ -44,6 +56,8 @@ interface TextInputProps {
   optional?: boolean;
   maxLength?: number;
   type?: 'text' | 'email' | 'tel' | 'url';
+  /** Schema path, e.g. `contact.full_name`, used to show the AI-filled badge. */
+  path?: string;
 }
 
 export function TextInput({
@@ -56,10 +70,13 @@ export function TextInput({
   optional,
   maxLength = 120,
   type = 'text',
+  path,
 }: TextInputProps) {
   const id = useId();
+  const aiFilled = useAiFilled()(path ?? '', value);
   return (
-    <FieldShell label={label} hint={hint} error={error} optional={optional} htmlFor={id}>
+    <FieldShell label={label} hint={hint} error={error} optional={optional}
+                aiFilled={aiFilled} htmlFor={id}>
       <input
         id={id}
         className="field__input"
@@ -88,15 +105,18 @@ export function TextArea({
   optional,
   maxLength = 2000,
   rows = 4,
+  path,
 }: TextAreaProps) {
   const id = useId();
   const remaining = maxLength - value.length;
+  const aiFilled = useAiFilled()(path ?? '', value);
   return (
     <FieldShell
       label={label}
       hint={remaining < maxLength * 0.15 ? `${remaining} characters left` : hint}
       error={error}
       optional={optional}
+      aiFilled={aiFilled}
       htmlFor={id}
     >
       <textarea
@@ -118,13 +138,16 @@ interface DateRangeProps {
   end: string;
   onChange: (start: string, end: string) => void;
   endPlaceholder?: string;
+  /** Path of the entry itself, e.g. `experience.0`. */
+  path?: string;
 }
 
 /**
  * Dates are free text on purpose: resumes say "Jan 2023", "Summer 2024" and
  * "Present", and a strict date picker fights every one of those.
  */
-export function DateRange({ start, end, onChange, endPlaceholder = 'Present' }: DateRangeProps) {
+export function DateRange({ start, end, onChange, endPlaceholder = 'Present',
+                            path }: DateRangeProps) {
   return (
     <div className="field-row">
       <TextInput
@@ -132,6 +155,7 @@ export function DateRange({ start, end, onChange, endPlaceholder = 'Present' }: 
         value={start}
         placeholder="Mar 2022"
         maxLength={40}
+        path={path && `${path}.start_date`}
         onChange={(v) => onChange(v, end)}
       />
       <TextInput
@@ -139,6 +163,7 @@ export function DateRange({ start, end, onChange, endPlaceholder = 'Present' }: 
         value={end}
         placeholder={endPlaceholder}
         maxLength={40}
+        path={path && `${path}.end_date`}
         onChange={(v) => onChange(start, v)}
       />
     </div>
@@ -151,9 +176,11 @@ interface BulletListProps {
   onChange: (bullets: string[]) => void;
   hint?: string;
   max?: number;
+  path?: string;
 }
 
-export function BulletList({ label, bullets, onChange, hint, max = 12 }: BulletListProps) {
+export function BulletList({ label, bullets, onChange, hint, max = 12, path }: BulletListProps) {
+  const isAiFilled = useAiFilled();
   const update = (index: number, value: string) =>
     onChange(bullets.map((b, i) => (i === index ? value : b)));
   const remove = (index: number) =>
@@ -161,7 +188,10 @@ export function BulletList({ label, bullets, onChange, hint, max = 12 }: BulletL
 
   return (
     <div className="field">
-      <span className="field__label">{label}</span>
+      <span className="field__label">
+        {label}
+        {isAiFilled(path ?? '', bullets) && <AiBadge />}
+      </span>
       {hint && <p className="field__hint">{hint}</p>}
       <ul className="bullets">
         {bullets.map((bullet, index) => (

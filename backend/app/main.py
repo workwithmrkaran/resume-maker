@@ -7,6 +7,7 @@ Endpoints:
     POST /api/compile                      → { job_id }
     GET  /api/jobs/{job_id}                → status + download_url
     GET  /api/download/{token}             → the PDF
+    POST /api/extract                      upload a resume → { job_id }
 """
 
 from __future__ import annotations
@@ -16,14 +17,18 @@ import os
 from contextlib import asynccontextmanager
 from typing import Optional
 
-from fastapi import Depends, FastAPI, HTTPException, Request, Response
+from fastapi import (Depends, FastAPI, File, HTTPException, Request,
+                     Response, UploadFile)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from . import compile as compiler
 from .compile import render_first_page_png
-from .jobs import QueueFull, queue
-from .ratelimit import COMPILE_LIMIT, POLL_LIMIT, client_key, limiter
+from .extraction.text import MAX_UPLOAD_BYTES
+from .jobs import EXTRACT, QueueFull, queue
+from .llm import get_client
+from .ratelimit import (COMPILE_LIMIT, EXTRACT_LIMIT, POLL_LIMIT, client_key,
+                        limiter)
 from .sample import SAMPLE_RESUME
 from .schema import CompileRequest, JobStatus
 from .storage import store
@@ -74,11 +79,16 @@ def rate_limit(limit):
 
 @app.get("/api/health")
 async def health() -> dict:
+    llm = get_client()
     return {
         "status": "ok",
         "engine": compiler.LATEX_ENGINE,
         "backend": compiler.COMPILE_BACKEND,
         "engine_available": compiler.engine_available(),
+        # Which providers are loaded, and in what order they will be tried.
+        # Keys are redacted — this endpoint is public.
+        "extraction_enabled": llm.configured,
+        "llm_providers": llm.describe(),
     }
 
 
@@ -154,6 +164,39 @@ async def start_compile(payload: CompileRequest, request: Request) -> JobStatus:
     return _job_status(job)
 
 
+@app.post("/api/extract", status_code=202,
+          dependencies=[Depends(rate_limit(EXTRACT_LIMIT))])
+async def start_extraction(file: UploadFile = File(...)) -> JobStatus:
+    """Read an uploaded resume into the same schema the manual form produces.
+
+    The upload is held in memory for the length of the job and never written to
+    disk: it is somebody's full employment history and home address.
+    """
+    if not get_client().configured:
+        raise HTTPException(
+            status_code=503,
+            detail="Resume reading is switched off right now — please fill "
+                   "the form in yourself.",
+        )
+
+    data = await file.read(MAX_UPLOAD_BYTES + 1)
+    if len(data) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413,
+                            detail="That file is too large — the limit is 5 MB.")
+    if not data:
+        raise HTTPException(status_code=400, detail="That file is empty.")
+
+    try:
+        job = await queue.submit_extraction(data, file.filename or "resume")
+    except QueueFull:
+        raise HTTPException(
+            status_code=503,
+            detail="We're reading a lot of resumes right now — try again in a moment.",
+            headers={"Retry-After": "15"},
+        ) from None
+    return _job_status(job)
+
+
 @app.get("/api/jobs/{job_id}", dependencies=[Depends(rate_limit(POLL_LIMIT))])
 async def job_status(job_id: str) -> JobStatus:
     job = queue.get(job_id)
@@ -183,8 +226,14 @@ async def download(token: str, inline: bool = False) -> Response:
 
 def _job_status(job) -> JobStatus:
     url: Optional[str] = f"/api/download/{job.token}" if job.token else None
-    return JobStatus(job_id=job.id, status=job.status, message=job.message,
-                     download_url=url)
+    status = JobStatus(job_id=job.id, kind=job.kind, status=job.status,
+                       message=job.message, download_url=url,
+                       warnings=job.warnings)
+    if job.kind == EXTRACT and job.result:
+        status.resume = job.result["resume"]
+        status.confidence = job.result["confidence"]
+        status.low_confidence = job.result["low_confidence"]
+    return status
 
 
 @app.exception_handler(HTTPException)

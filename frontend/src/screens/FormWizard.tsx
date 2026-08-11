@@ -27,11 +27,14 @@ interface Props {
   resume: Resume;
   setResume: (updater: (current: Resume) => Resume) => void;
   savedAt: Date | null;
+  /** Messages from the extraction step, e.g. "check these carefully". */
+  notices?: string[];
   onFinish: () => void;
   onBack: () => void;
 }
 
-export function FormWizard({ resume, setResume, savedAt, onFinish, onBack }: Props) {
+export function FormWizard({ resume, setResume, savedAt, notices = [], onFinish,
+                             onBack }: Props) {
   const [index, setIndex] = useState(0);
   // Errors show as the user types, but only for steps they've tried to leave —
   // flagging an empty form on arrival is hostile.
@@ -87,6 +90,16 @@ export function FormWizard({ resume, setResume, savedAt, onFinish, onBack }: Pro
             ))}
           </ol>
         </nav>
+
+        {notices.length > 0 && (
+          <div className="notice notice--status" role="status">
+            <div>
+              {notices.map((note) => (
+                <p key={note}>{note}</p>
+              ))}
+            </div>
+          </div>
+        )}
 
         <section className="wizard__step">
           <h2>

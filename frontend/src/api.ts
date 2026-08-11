@@ -33,6 +33,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+export interface Health {
+  status: string;
+  engine_available: boolean;
+  extraction_enabled: boolean;
+}
+
+export const fetchHealth = () => request<Health>('/api/health');
+
 export const fetchTemplates = () =>
   request<{ templates: Template[] }>('/api/templates').then((r) => r.templates);
 
@@ -43,6 +51,31 @@ export const startCompile = (resume: Resume, templateId: string) =>
   });
 
 export const fetchJob = (jobId: string) => request<JobStatus>(`/api/jobs/${jobId}`);
+
+/**
+ * Upload a resume for AI extraction.
+ *
+ * No `Content-Type` header: the browser must set the multipart boundary
+ * itself, and overriding it breaks the upload.
+ */
+export async function startExtraction(file: File): Promise<JobStatus> {
+  const body = new FormData();
+  body.append('file', file);
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}/api/extract`, { method: 'POST', body });
+  } catch {
+    throw new ApiError("We couldn't reach the server. Check your connection and try again.", 0);
+  }
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    throw new ApiError(
+      payload?.error ?? "We couldn't read that file. Please try another.",
+      response.status,
+    );
+  }
+  return response.json() as Promise<JobStatus>;
+}
 
 export const absoluteUrl = (path: string) => `${API_BASE}${path}`;
 

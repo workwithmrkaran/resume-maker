@@ -27,6 +27,12 @@ COMPILE_LIMIT = Limit(
     max_events=int(os.getenv("RATE_LIMIT_COMPILES", "10")),
     window_seconds=int(os.getenv("RATE_LIMIT_WINDOW", "600")),
 )
+# Extraction burns a third-party API quota that is shared by every user, so it
+# is capped tighter than compilation.
+EXTRACT_LIMIT = Limit(
+    max_events=int(os.getenv("RATE_LIMIT_EXTRACTIONS", "5")),
+    window_seconds=int(os.getenv("RATE_LIMIT_WINDOW", "600")),
+)
 # Polling job status and downloading are cheap; they only need a ceiling that
 # stops a runaway client, not a real budget.
 POLL_LIMIT = Limit(max_events=600, window_seconds=600)

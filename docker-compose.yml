@@ -1,6 +1,9 @@
 services:
   api:
     build: ./backend
+    env_file:
+      - path: ./backend/.env
+        required: false
     ports:
       - "8000:8000"
     environment:
@@ -9,7 +12,12 @@ services:
       COMPILE_TIMEOUT: "20"
       RATE_LIMIT_COMPILES: "10"
       RATE_LIMIT_WINDOW: "600"
+      RATE_LIMIT_EXTRACTIONS: "5"
       PDF_TTL_SECONDS: "3600"
+      # AI extraction keys come from backend/.env via env_file above. They are
+      # deliberately NOT listed here: keys set in `environment` win over
+      # `env_file`, so an empty default here would blank them out. Without
+      # them the upload path switches itself off and the form still works.
     # The compile step runs untrusted LaTeX, so the container gets no more
     # privilege than it needs and only the two writable paths it actually uses.
     read_only: true
